@@ -49,3 +49,4 @@ next-env.d.ts
 .claude/settings.local.json
 docs/design-studio/baseline/
 docs/admin/adversarial-review.json
+.claude/scheduled_tasks.lock
