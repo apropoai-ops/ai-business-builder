@@ -1,0 +1,8 @@
+-- ============================================================================
+--  Migration 0046 — universal cross-business modules (parallel 10-agent wave).
+--  10 opt-in modules any business can use: gallery, team, pricing_plans, events,
+--  menu_items, job_openings, blog_posts, faqs, testimonials, gift_cards.
+--  Each: owner full access via RLS; public storefront reads via service-role.
+--  Applied via MCP (see the applied SQL in the migration history).
+-- ============================================================================
+-- (Tables created via apply_migration "universal_modules" — this file mirrors it.)

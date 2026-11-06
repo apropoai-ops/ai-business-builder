@@ -1,0 +1,1142 @@
+[
+  {
+    "title": "ה-Lightbox של כרטיס המוצר נכלא בתוך הכרטיס",
+    "file": "components/public/public-store.tsx",
+    "line": 162,
+    "problem": "אומת בקוד. שורש הכרטיס (שורה 102) הוא `svc-card flex flex-col overflow-hidden ...`, וה-Lightbox מרונדר כילד שלו בשורה 162. `tier-styles.tsx:407-409` נותן `[data-el=\"product-card\"]:hover, :focus-within { transform: translateY(-4px) }` ו-`app/s/[slug]/page.tsx:779` נותן `.svc-card:hover { transform: translateY(-4px) }` — כל transform פעיל יוצר containing block ל-position:fixed. לחיצה על כפתור ההגדלה (שורה 137) מפעילה גם hover וגם focus-within, ולכן `fixed inset-0 z-[200]` (שורה 51) מתמקם ביחס לכרטיס, נחתך ב-overflow-hidden ומקבל את ה-border-radius:5px של הדרג. ההשוואה ל-cart-drawer.tsx:294 (createPortal ל-document.body) נכונה — זו בדיוק הסיבה שהמגירה כן עובדת.",
+    "fix": "לרנדר דרך פורטל: בראש הקובץ `import { createPortal } from \"react-dom\";` (ולהוסיף `useEffect` לייבוא מ-react בשורה 4), ובשורה 162: `{zoom && typeof document !== \"undefined\" && createPortal(<MediaLightbox media={zoom} onClose={() => setZoom(null)} />, document.body)}`. ב-MediaLightbox (שורה 51) להוסיף `dir=\"rtl\" role=\"dialog\" aria-modal=\"true\"` והאזנת Escape ב-useEffect. שים לב: הפורטל יושב מחוץ ל-[data-tier], ולכן ה-overlay חייב להישאר עם צבעים מפורשים כפי שהוא היום (bg-black/80 + text-zinc-800 על כפתור הסגירה) — אל תסתמך על ירושת צבע.",
+    "severity": "critical",
+    "category": "polish",
+    "area": "store"
+  },
+  {
+    "title": "עמוד המוצר מחיל את סגנון הכפתור הראשי פעמיים",
+    "file": "app/s/[slug]/product/[productId]/page.tsx",
+    "line": 295,
+    "problem": "אומת בקוד. שורה 295 היא `<div data-el=\"btn-primary\" className=\"mt-6\">` ובתוכה AddToCartButton, שהכפתור שלו כבר נושא `data-el=\"btn-primary\"` (add-to-cart-button.tsx:163). `tier-styles.tsx:422-432` מחיל על כל `[data-el=\"btn-primary\"]` (לא מוגבל ל-module-section) גרדיאנט זהב, `border-radius:50px !important`, `padding-inline:2rem !important`, `padding-block:.9rem !important` ו-box-shadow → גלולה בתוך גלולה. אומת גם שבמצב `open` הפאנל הלבן (add-to-cart-button.tsx:175) יושב בתוך הגלולה, ושבמצב אזל הכפתור המושבת (שורה 149, ללא data-el) עטוף בגלולת זהב זוהרת — כלומר מצב disabled נראה כמו CTA פעיל.",
+    "fix": "להסיר את התכונה מה-wrapper בשורה 295: `<div className=\"mt-6\">`. ה-data-el הפנימי של AddToCartButton מספיק.",
+    "severity": "critical",
+    "category": "consistency",
+    "area": "store"
+  },
+  {
+    "title": "שכבת \"אזל\" חוסמת את הקישור לעמוד המוצר",
+    "file": "components/public/public-store.tsx",
+    "line": 131,
+    "problem": "אומת בקוד. שורות 131-133: `<div className=\"absolute inset-0 flex items-center justify-center bg-white/40\" />` — ללא pointer-events-none, ומופיע ב-DOM אחרי ה-Link (שורות 104-113) ולכן קולט את הקליקים על אזור התמונה. הקישור מהכותרת (שורה 185) עדיין עובד, אבל הקליק הטבעי על התמונה מת — כולל למוצרים שכן ניתנים להזמנה מוקדמת (preorder מועבר בשורה 226). אומת גם שה-remap של הדרג מכוון ל-`.bg-white` בלבד (tier-styles.tsx:378) ולא לקלאס `bg-white\\/40`, ולכן על כרטיס `#111214` נוצרת הילה לבנה חלבית.",
+    "fix": "`<div className=\"pointer-events-none absolute inset-0 bg-black/45\" />`.",
+    "severity": "high",
+    "category": "polish",
+    "area": "store"
+  },
+  {
+    "title": "גבהים לא אחידים ברשת המוצרים",
+    "file": "components/public/public-store.tsx",
+    "line": 537,
+    "problem": "אומת בקוד. פריט הרשת בשורה 537 הוא `<div key={p.id} data-reveal>` שנמתח לגובה השורה (align-items:stretch של grid), אבל ProductCard בשורה 102 הוא `flex flex-col` ללא h-full ונשאר בגובה התוכן. לכן ה-flex-1 על התיאור (שורה 209) ו-`mt-4` על כפתור ההוספה (שורה 211) לא דוחפים את הכפתור לתחתית, וכפתורי \"הוספה לסל\" באותה שורה יושבים בגבהים שונים. רצועת הממוזערות (שורה 165) שמופיעה רק כשיש יותר מתמונה אחת מחריפה את הפער.",
+    "fix": "שורה 537: `<div key={p.id} data-reveal className=\"h-full\">`; שורה 102: `className=\"svc-card flex h-full flex-col overflow-hidden rounded-2xl border bg-white shadow-sm\"`. את ההצעה לשריין h-14 קבוע לרצועת הממוזערות אני לא מאשר כמו שהיא — היא מוסיפה ~56px של אוויר ריק לכל כרטיס בלי תמונות נוספות; שתי התוספות של h-full לבדן פותרות את יישור הכפתורים.",
+    "severity": "high",
+    "category": "alignment",
+    "area": "store"
+  },
+  {
+    "title": "תגי מבצע/חדש מתנגשים בכפתורי ההגדלה והווידאו",
+    "file": "components/public/public-store.tsx",
+    "line": 114,
+    "problem": "אומת בקוד. מקבץ התגיות בשורה 114 הוא `absolute right-3 top-3` ומקבץ הזום/וידאו בשורה 135 הוא `absolute right-2 top-2` — שניהם באותה פינה של אותו הורה relative (שורה 103). כפתור הזום הוא size-8 (32px) ומשתרע מ-8px עד 40px מהקצה, בעוד התג מתחיל ב-12px; הכפתור מרונדר אחרי ב-DOM ולכן מכסה את התג. אומת גם שכל המיקומים בכרטיס פיזיים (right/left) בזמן שאותו קובץ כבר משתמש בלוגיים במקומות אחרים (end-3 בשורה 388, pe-9 ps-3 בשורה 393, end-4 בשורה 56).",
+    "fix": "להפריד לפינות נגדיות ולעבור למאפיינים לוגיים: שורה 114 → `absolute start-3 top-3 z-10 flex flex-col items-start gap-1`; שורה 135 → `absolute end-2 top-2 flex gap-1`; שורה 127 (תג אזל) → `absolute bottom-3 end-3 ...`; שורה 157 (משאלות) → `absolute bottom-2 start-2`. התיקון הזה סוגר גם את חוסר-העקביות בין physical ל-logical באותו קובץ.",
+    "severity": "high",
+    "category": "alignment",
+    "area": "store"
+  },
+  {
+    "title": "קישורי פירורי לחם נעלמים ב-hover על הרקע השחור",
+    "file": "app/s/[slug]/product/[productId]/page.tsx",
+    "line": 209,
+    "problem": "אומת בקוד. שורות 209 ו-211 הן `hover:text-zinc-900`, ושורה 186 היא `text-zinc-500 hover:text-zinc-900`. ה-remap של הדרג (tier-styles.tsx:382-387 ו-337-340) מכוון לקלאסים `.text-zinc-900`/`.text-zinc-500` בלבד; טיילווינד מייצרת לוריאנט hover את הקלאס `.hover\\:text-zinc-900:hover`, שאינו נתפס. ה-main בשורה 206 נושא data-el=\"module-section\" שהדרג מכריח לו `background:#000000 !important` (tier-styles.tsx:372-375), וההדר מקבל `rgba(0,0,0,.72)`. לכן בריחוף הצבע הופך ל-#18181b על שחור — הקישור נעלם בדיוק ברגע ההצבעה. אומת גם public-store.tsx:434 (`text-zinc-400 hover:text-zinc-600`) בתוך פאנל שהדרג צובע ל-#121214.",
+    "fix": "להחליף את וריאנט ה-hover בצבע מפורש: שורות 209 ו-211 → `className=\"transition-colors hover:text-white\"`; שורה 186 → `className=\"hidden items-center gap-1 text-sm text-zinc-500 transition-colors hover:text-white sm:flex\"`; public-store.tsx:434 → `className=\"text-zinc-400 transition-colors hover:text-white\"`. (בטוח כי lib/design-tier.ts מחזיר תמיד professional — משטח כהה יחיד.)",
+    "severity": "high",
+    "category": "color",
+    "area": "store"
+  },
+  {
+    "title": "סרגל הסיכום והתשלום במגירת העגלה נגלל עם רשימת המוצרים",
+    "file": "components/public/cart-drawer.tsx",
+    "line": 338,
+    "problem": "אומת בקוד. שורה 338 `<div className=\"flex flex-1 flex-col overflow-y-auto\">` היא מיכל הגלילה היחיד, ובתוכה יושבים רשימת הפריטים (340), בלוק ההמלצות (387-424) והפוטר עם הסכומים וכפתור \"למעבר לתשלום\" (427-648). כלומר ה-CTA וה-סה\"כ נגללים עם התוכן ואינם מקובעים לתחתית המגירה.",
+    "fix": "שורה 338 → `<div className=\"flex min-h-0 flex-1 flex-col\">`; לעטוף את 340-424 ב-`<div className=\"min-h-0 flex-1 overflow-y-auto\">`; שורה 427 → `<div className=\"shrink-0 space-y-3 border-t bg-white p-4\">`. במצב checkout הטופס ארוך — להוסיף ל-`<form>` בשורה 513 `max-h-[55vh] overflow-y-auto`.",
+    "severity": "high",
+    "category": "responsive",
+    "area": "store"
+  },
+  {
+    "title": "רוחב המכולה קופץ בין החנות לעמוד המוצר",
+    "file": "app/s/[slug]/product/[productId]/page.tsx",
+    "line": 174,
+    "problem": "אומת בקוד. עמוד המוצר: הדר `mx-auto flex max-w-6xl ...` (שורה 174) ו-main `mx-auto max-w-6xl px-4 py-8` (שורה 206). האתר הראשי: הדר `mx-auto flex h-16 max-w-5xl ...` (app/s/[slug]/page.tsx:790), סקשן החנות `max-w-5xl` (public-store.tsx:342), ושאר הסקשנים max-w-5xl (page.tsx:390, 473, 566). הפרש של 128px ברוחב = כ-64px קפיצה לכל צד בכל מעבר לעמוד מוצר וחזרה.",
+    "fix": "להחליף `max-w-6xl` ל-`max-w-5xl` בשורות 174 ו-206. (בונוס באותו אזור: ההדר של עמוד המוצר הוא py-3+h-8 (~57px) מול h-16 (64px) באתר הראשי — כדאי ליישר גם את הגובה כדי שהקפיצה תיעלם לגמרי.)",
+    "severity": "high",
+    "category": "consistency",
+    "area": "store"
+  },
+  {
+    "title": "פורמט מטבע לא עקבי — toLocaleString ללא locale",
+    "file": "components/public/public-store.tsx",
+    "line": 192,
+    "problem": "אומת בקוד. שורות 192 ו-195 ב-public-store.tsx קוראות ל-toLocaleString() ללא locale, בעוד שבאותו קובץ שורה 445 משתמשת ב-\"he-IL\" וכל מגירת העגלה (cart-drawer.tsx:376, 406, 431, 476, 481, 487, 493, 500, 526, 552, 568) משתמשת ב-\"he-IL\". אותו דבר בעמוד המוצר בשורות 256 ו-260 (לא 257). מעבר לחוסר האחידות בין הכרטיס לעגלה עבור גולש בלוקאל אירופי, public-store.tsx הוא קומפוננטת לקוח שמרונדרת גם בשרת — לוקאל שרת שונה מלוקאל דפדפן מייצר גם hydration mismatch.",
+    "fix": "לקבע locale בארבעת המקומות: public-store.tsx:192 → `₪{eff.toLocaleString(\"he-IL\")}`, שורה 195 → `₪{p.price!.toLocaleString(\"he-IL\")}`; product/[productId]/page.tsx:256 → `₪{eff.toLocaleString(\"he-IL\")}`, שורה 260 → `₪{Number(product.price).toLocaleString(\"he-IL\")}`.",
+    "severity": "medium",
+    "category": "consistency",
+    "area": "store"
+  },
+  {
+    "title": "שדה הטלפון בצ'קאאוט ללא dir=ltr",
+    "file": "components/public/cart-drawer.tsx",
+    "line": 611,
+    "problem": "אומת בקוד. שורה 611 (טלפון, type=\"tel\") ללא dir, בעוד שורה 612 (אימייל) כן מקבלת `dir=\"ltr\"`. גם שורה 627 (\"מספר\" בית) מקבלת inputMode=\"numeric\" בלי dir. בהקשר RTL, מספר עם +972 או מקפים מציג את התווים הנייטרליים בצד ההפוך.",
+    "fix": "שורה 611: להוסיף `dir=\"ltr\" inputMode=\"tel\"`; שורה 627: להוסיף `dir=\"ltr\"`. הערה: הנימוק המקורי לגבי `text-start` שגוי — כשה-dir של האלמנט הוא ltr, `start` מתפרש כשמאל ולא כימין. אם רוצים בכל זאת יישור לימין יש להשתמש ב-`text-right`; אחרת פשוט להשאיר כמו שדה האימייל בשורה 612 (dir=\"ltr\" בלבד) לשם אחידות.",
+    "severity": "medium",
+    "category": "rtl",
+    "area": "store"
+  },
+  {
+    "title": "dir=ltr על כל בלוק פרטי הבנק הופך את יישור הטקסט העברי",
+    "file": "components/public/cart-drawer.tsx",
+    "line": 699,
+    "problem": "אומת בקוד. שורה 699 `<ul className=\"space-y-0.5\" dir=\"ltr\">` עוטפת ארבע שורות עברית+ערך (700-703: \"בנק:\", \"סניף:\", \"חשבון:\", \"ע״ש:\"). ה-dir חל על השורה כולה ולכן כל הרשימה נצמדת לשמאל בעוד הכותרת \"העברה בנקאית\" (שורה 697) יורשת `text-start` מ-`box` (שורה 671) ונצמדת לימין — שני יישורים מנוגדים באותה תיבה. אותו קובץ כבר עושה את זה נכון עבור טלפון Bit בשורה 684 (`<span dir=\"ltr\">` על הערך בלבד).",
+    "fix": "להסיר את ה-dir מה-ul ולעטוף רק את הערכים: `<ul className=\"space-y-0.5\">`, `{b.branch && <li>סניף: <span dir=\"ltr\" className=\"inline-block\">{b.branch}</span></li>}`, `{b.account && <li>חשבון: <span dir=\"ltr\" className=\"inline-block font-mono\">{b.account}</span></li>}`. b.bank ו-b.holder נשארים כטקסט עברי.",
+    "severity": "medium",
+    "category": "rtl",
+    "area": "store"
+  },
+  {
+    "title": "טקסט zinc-400 על רקע לבן במגירת העגלה — ניגודיות נכשלת",
+    "file": "components/public/cart-drawer.tsx",
+    "line": 360,
+    "problem": "אומת בקוד. שורה 360 `truncate text-xs text-zinc-400` לטקסט החריטה, ושורה 547 `${sel ? \"text-white/80\" : \"text-zinc-400\"}` לתיאור שיטת המשלוח. אומת שהמגירה מרונדרת ב-createPortal ל-document.body (שורה 294), כלומר מחוץ לתת-העץ של [data-tier] — ולכן ה-remap ב-tier-styles.tsx:386-387 לא חל, והפאנל נשאר bg-white עם color:#18181b מפורש (שורה 300). #a1a1aa על #ffffff ≈ 2.6:1, נכשל ב-AA. טקסט החריטה הוא מידע שהלקוח הזין ושילם עליו.",
+    "fix": "להחליף `text-zinc-400` ל-`text-zinc-600` בשורה 360 ובשורה 547 (עבור המצב הלא-נבחר בלבד; `text-white/80` על רקע המותג נשאר).",
+    "severity": "medium",
+    "category": "accessibility",
+    "area": "store"
+  },
+  {
+    "title": "גלריית המוצר — תוויות זהות לכל התמונות, בלי מצב נבחר נגיש",
+    "file": "components/public/product-gallery.tsx",
+    "line": 40,
+    "problem": "אומת בקוד. בלולאה בשורות 33-45 כל הכפתורים מקבלים `aria-label=\"הצגת תמונה\"` זהה (שורה 40), ה-img הפנימי `alt=\"\"` (שורה 43), והמצב הנבחר מסומן ויזואלית בלבד דרך borderColor (שורה 39) ללא aria-pressed.",
+    "fix": "להוסיף אינדקס ל-map: `{images.map((src, i) => (<button key={src} type=\"button\" onClick={() => setActive(src)} aria-pressed={active === src} aria-label={`תמונה ${i + 1} מתוך ${images.length}`} className=\"size-16 shrink-0 overflow-hidden rounded-xl border-2 transition\" style={{ borderColor: active === src ? brand : \"#e4e4e7\" }}>`.",
+    "severity": "medium",
+    "category": "accessibility",
+    "area": "store"
+  },
+  {
+    "title": "מגירת העגלה בלי Escape, בלי נעילת גלילה ובלי role=dialog",
+    "file": "components/public/cart-drawer.tsx",
+    "line": 294,
+    "problem": "אומת בקוד. הפורטל בשורה 294 פותח `fixed inset-0 z-[100]` עם backdrop שנסגר בקליק (שורה 297), אבל בקובץ אין ולו useEffect אחד (הייבוא בשורה 3 הוא useState/useTransition/useMemo בלבד) — אין Escape, אין נעילת overflow על ה-body, ואין role=\"dialog\"/aria-modal על הפאנל בשורה 300. אומת גם שהפורטל יושב מחוץ ל-[data-tier] ולכן כלל ה-focus-visible המשותף (tier-styles.tsx:34-38) לא חל על שדות הצ'קאאוט.",
+    "fix": "להוסיף `useEffect` לייבוא בשורה 3, ובקומפוננטה: `useEffect(() => { if (!open) return; const h = (e: KeyboardEvent) => { if (e.key === \"Escape\") setOpen(false); }; window.addEventListener(\"keydown\", h); const prev = document.body.style.overflow; document.body.style.overflow = \"hidden\"; return () => { window.removeEventListener(\"keydown\", h); document.body.style.overflow = prev; }; }, [open]);`. לשורה 300 להוסיף `role=\"dialog\" aria-modal=\"true\" aria-label=\"סל הקניות\"`.",
+    "severity": "medium",
+    "category": "accessibility",
+    "area": "store"
+  },
+  {
+    "title": "שדות הצ'קאאוט מסומנים ב-placeholder בלבד",
+    "file": "components/public/cart-drawer.tsx",
+    "line": 610,
+    "problem": "אומת בקוד. כל שדות הטופס (610-612, 624-629, 635 וגם הקופון בשורה 453) מסתמכים על placeholder בלבד — אין <label>, אין aria-label ואין id. הודעת השגיאה בשורה 632 (\"נא למלא עיר, רחוב ומספר\") היא הודעה אחת לשלושה שדות ואינה מקושרת לאף אחד מהם.",
+    "fix": "להוסיף aria-label לכל שדה, ו-aria-required/aria-invalid לשדות החובה. לדוגמה שורה 610: `<input aria-label=\"שם מלא\" aria-required=\"true\" ... />`; שורה 611: `aria-label=\"טלפון\" aria-required=\"true\"`; שורה 624: `aria-label=\"עיר\"`. ולקשר את השגיאה: להוסיף `id=\"addr-err\"` לשורה 632 ו-`aria-describedby=\"addr-err\"` לשדות עיר/רחוב/מספר (624, 626, 627).",
+    "severity": "medium",
+    "category": "accessibility",
+    "area": "store"
+  },
+  {
+    "title": "גלריית עמוד המוצר חלשה מכרטיס המוצר — בלי הגדלה ובלי וידאו",
+    "file": "components/public/product-gallery.tsx",
+    "line": 27,
+    "problem": "אומת בקוד. התמונה הראשית (product-gallery.tsx:27-30) היא img סטטי ללא הגדלה, בעוד שכרטיס הרשת מציע Lightbox עם זום (public-store.tsx:136-145) ונגן וידאו (146-155). אומת בחיפוש בריפו ש-`video_url` נצרך רק ב-public-store.tsx:146,150 (ונקלט ב-store-manager.tsx:206) — עמוד המוצר לא מזכיר אותו כלל. כלומר סוחר שהעלה וידאו מוצר לא רואה אותו במשטח ההמרה המרכזי.",
+    "fix": "אחרי שה-MediaLightbox עובר לפורטל (ממצא 1) — לייצא אותו מ-public-store.tsx, ובגלריה להוסיף `const [zoom, setZoom] = useState<{type:\"img\"|\"video\";src:string}|null>(null)`, לעטוף את התמונה הראשית ב-`<button type=\"button\" onClick={() => setZoom({ type: \"img\", src: active })} aria-label=\"הגדלת התמונה\" className=\"aspect-square w-full cursor-zoom-in overflow-hidden rounded-2xl border bg-white\">`, ולהוסיף פרופ `videoUrl?: string | null` שמרנדר ממוזערת נוספת עם אייקון Play. בעמוד המוצר להעביר `videoUrl={product.video_url}` בשורה 221. הורדתי ל-low כי זו הרחבת פיצ'ר ולא שבירה.",
+    "severity": "low",
+    "category": "consistency",
+    "area": "store"
+  },
+  {
+    "title": "שדות רחוב ומספר בית ברוחב זהה",
+    "file": "components/public/cart-drawer.tsx",
+    "line": 623,
+    "problem": "אומת בקוד. שורה 623 `<div className=\"grid grid-cols-2 gap-2\">` נותנת חצי שורה לכל אחד מששת שדות הכתובת (624-629), כך ש\"מספר\" (1-3 תווים, שורה 627) מקבל בדיוק את הרוחב של \"רחוב\" (שורה 626) ושל \"עיר\".",
+    "fix": "שורה 623 → `<div className=\"grid grid-cols-6 gap-2\">`, ולהוסיף col-span לכל שדה: עיר `col-span-4`, מדינה `col-span-2`, רחוב `col-span-4`, מספר `col-span-2`, דירה `col-span-3`, קומה `col-span-3`.",
+    "severity": "low",
+    "category": "alignment",
+    "area": "store"
+  },
+  {
+    "title": "כפתור שליחת ההזמנה מושבת בלי להסביר למה",
+    "file": "components/public/cart-drawer.tsx",
+    "line": 639,
+    "problem": "אומת בקוד. שורה 639: `disabled={isPending || !shipValid || !addressValid || name.trim().length < 2 || phone.replace(/\\D/g, \"\").length < 9}`. ההודעה היחידה בטופס היא שורות 631-633, וגם היא מותנית ב-`(city || street || streetNo)`. אומת ב-lib/shipping.ts:60,68 ש-resolveShipping מחזיר null כשלא נבחר אזור/נקודת איסוף → shipValid=false (שורה 138) → הכפתור אפור ב-50% בלי שום טקסט מסביר.",
+    "fix": "להוסיף בין שורה 636 ל-637 רמז דינמי: `{!isPending && (!shipValid || !addressValid || name.trim().length < 2 || phone.replace(/\\D/g, \"\").length < 9) && (<p className=\"text-xs text-amber-600\">{!shipValid ? \"נא לבחור אזור / נקודת איסוף\" : name.trim().length < 2 ? \"נא למלא שם מלא\" : phone.replace(/\\D/g, \"\").length < 9 ? \"נא למלא מספר טלפון תקין\" : \"נא להשלים את כתובת המשלוח\"}</p>)}`.",
+    "severity": "low",
+    "category": "polish",
+    "area": "store"
+  },
+  {
+    "title": "באנר תוצאת התשלום מכסה את ההדר",
+    "file": "components/public/checkout-result.tsx",
+    "line": 36,
+    "problem": "אומת בקוד. שורה 36: `fixed inset-x-0 top-0 z-[120] flex justify-center p-3`. הקומפוננטה מרונדרת בשני העמודים (app/s/[slug]/page.tsx:771 ו-product/[productId]/page.tsx:204), ובשניהם ההדר הוא `sticky top-0 z-50`. המיכל החיצוני משתרע על כל רוחב המסך ותופס אירועי עכבר, ולכן הוא חוסם את הלוגו/כפתור הסל שמתחתיו — לא רק ויזואלית. בנוסף אין לתיבה (שורה 38) הגבלת רוחב למובייל.",
+    "fix": "שורה 36 → `className=\"fixed inset-x-0 top-[68px] z-[120] flex justify-center p-3\"` (ההדר של האתר הראשי הוא h-16=64px ב-page.tsx:790, ושל עמוד המוצר ~57px — 68px מפנה את שניהם); שורה 38 → להוסיף `max-w-[calc(100vw-1.5rem)]`. את ההיעלמות האוטומטית אני מאשר רק כאופציה ובזמן ארוך יותר (12-15 שניות) — אישור תשלום מוצלח שנעלם אחרי 8 שניות עלול להיתפס כאיבוד המידע.",
+    "severity": "low",
+    "category": "responsive",
+    "area": "store"
+  },
+  {
+    "title": "כפתור סגירה עם תו טקסט במקום אייקון lucide",
+    "file": "components/public/checkout-result.tsx",
+    "line": 64,
+    "problem": "אומת בקוד. שורה 64 מרנדרת את התו הגולמי ✕ כטקסט, בעוד כל שאר משטחי החנות משתמשים באייקון של lucide: cart-drawer.tsx:307, public-store.tsx:58, public-store.tsx:435, add-to-cart-button.tsx:179. הקובץ כבר מייבא מ-lucide-react בשורה 4.",
+    "fix": "שורה 4 → `import { CheckCircle2, XCircle, X } from \"lucide-react\";`; שורה 64 → `<X className=\"size-4\" />`.",
+    "severity": "low",
+    "category": "consistency",
+    "area": "store"
+  },
+  {
+    "title": "מצב \"לא נמצאו מוצרים\" בלי דרך לנקות את הסינון",
+    "file": "components/public/public-store.tsx",
+    "line": 533,
+    "problem": "אומת בקוד. שורה 533 היא טקסט בלבד. אומת ש-clearAll (שורות 291-298) מאפס מידות/צבעים/מותגים/מחיר/מבצע/מלאי אך לא את `query` ולא את `filter`, וששלב הניקוי היחיד בממשק הוא הכפתור בשורה 430 שנמצא בתוך פאנל הסינון (שורה 424) שעשוי להיות סגור. אומת ש-Package כבר מיובא בשורה 5.",
+    "fix": "שורה 533 → `<div className=\"flex flex-col items-center gap-3 py-12 text-center text-zinc-500\"><Package className=\"size-10 opacity-40\" /><p>לא נמצאו מוצרים תואמים</p><button type=\"button\" onClick={() => { clearAll(); setQuery(\"\"); setFilter(null); }} className=\"rounded-full border px-4 py-1.5 text-sm font-medium\" style={{ borderColor: brand, color: brand }}>ניקוי כל הסינונים</button></div>`.",
+    "severity": "low",
+    "category": "polish",
+    "area": "store"
+  },
+  {
+    "title": "לוגו כהה נעלם בהדר הכהה של דרג professional",
+    "file": "app/s/[slug]/page.tsx",
+    "line": 797,
+    "problem": "אומת מול הקוד. tier-styles.tsx:327-331 — `[data-tier=\"professional\"] [data-el=\"chrome-header\"] { background: rgba(0,0,0,.72) !important; }`. lib/design-tier.ts:resolveDesignTier מחזיר `return \"professional\"` קשיח (עם `void override; void plan;`) — כלומר ההדר של כל אתר חי הוא כמעט-שחור. במקביל צינור הלוגו מייצר דיו כהה: buildWordmarkLogo כותב את השם העברי ב-`fill=\"${brandHex}\"` (svg-design.ts:316) ואת שורת האנגלית ב-`fill=\"${dark}\"` = shade(brandHex,-50) (svg-design.ts:288,317), והפרומפט ב-logo-options/route.ts:40 מבקש במפורש \"וכמעט-שחור לניגודיות\". ה-<img> בשורה 797 הוא `size-10 rounded-xl object-contain` בלי שום משטח. תיקון להיקף שהממצא פספס: אותה בעיה בדיוק חלה גם על עמודי הבלוג והמוצר — הם מסומנים data-tier (blog/page.tsx:60, blog/[postId]/page.tsx:115, product/[productId]/page.tsx:165) והמחלקה `bg-white/90` שלהם נדרסת ע\"י אותו !important. רק components/public/landing-page.tsx (בלי data-tier) נשאר עם הדר לבן אמיתי.",
+    "fix": "משטח קבוע ללוגו בהדר — בדיוק התבנית שכבר עובדת ב-app/q/[token]/page.tsx:167 (`bg-white/90 ... p-1.5 shadow-sm`):\napp/s/[slug]/page.tsx:797 → `className=\"size-10 shrink-0 rounded-xl bg-white/90 object-contain p-1 shadow-sm\"`\nולהחיל את אותו משטח גם ב-blog/page.tsx:69, blog/[postId]/page.tsx:128, product/[productId]/page.tsx:178 — ההדרים שלהם נדרסים לשחור באותה מידה.\n**לא לבצע את החצי השני של התיקון המוצע** (להפוך את fill ב-svg-design.ts:316-317 ל-light): זהו קובץ logo.svg יחיד שמוגש גם על משטחים לבנים — app/invoice/[id]/page.tsx:64 (bg-white), components/business/quote-pdf-button.tsx:153 (background:#fff), landing-page.tsx:70, ופוטר. הפיכתו לבהיר תעלים אותו שם. הפתרון הנכון לטווח ארוך הוא שני נכסים — `logo.svg` + `logo-light.svg` — ועמודת brand_assets.logo_light_url שרק ההדר הכהה צורך.",
+    "severity": "critical",
+    "category": "color",
+    "area": "logo"
+  },
+  {
+    "title": "לוגו-לוקאפ 512×256 נדחס לתיבה ריבועית 40×40",
+    "file": "app/s/[slug]/page.tsx",
+    "line": 797,
+    "problem": "אומת שורה-שורה. lib/jobs/handlers/site-design.ts:24 מחייב בסכימה `viewBox 0 0 512 256`, וה-fallback buildWordmarkLogo פולט `<svg ... viewBox=\"0 0 512 256\">` (svg-design.ts:299) — זהו הלוגו הדיפולטי של כל אתר. התיבה בשורה 797 היא `size-10` (40×40); object-contain שומר יחס ולכן הרינדור בפועל 40×20, והטקסט העברי ב-font-size=\"46\" מתוך 256 (svg-design.ts:316) יורד ל-~3.6px. אומתו גם כל שאר האתרים: app/s/[slug]/account/layout.tsx:41 (`size-9`), app/q/[token]/page.tsx:167 (`size-14`), app/invoice/[id]/page.tsx:64 (`size-12`), components/business/quote-pdf-button.tsx:153 (`height:56,width:56`).",
+    "fix": "תיבה בגובה קבוע + רוחב חופשי חסום, בכל חמשת המקומות:\napp/s/[slug]/page.tsx:797 → `h-9 w-auto max-w-[168px] shrink-0 rounded-lg bg-white/90 object-contain p-1 shadow-sm` (משלב את משטח הרקע מהממצא הקודם)\napp/s/[slug]/account/layout.tsx:41 → `h-8 w-auto max-w-[150px] shrink-0 object-contain`\napp/q/[token]/page.tsx:167 → `h-12 w-auto max-w-[180px] shrink-0 rounded-lg bg-white/90 object-contain px-2 py-1.5 shadow-sm`\napp/invoice/[id]/page.tsx:64 → `h-12 w-auto max-w-[160px] object-contain`\nquote-pdf-button.tsx:153 → `style={{ height: 56, width: \"auto\", maxWidth: 180, objectFit: \"contain\", background: \"#fff\", borderRadius: 10, padding: 6 }}`\nהתיקון בטוח גם למסלול ה-PNG הריבועי 1024×1024 (logo-options/route.ts:100) — שם h-9 w-auto נותן 36×36.",
+    "severity": "critical",
+    "category": "alignment",
+    "area": "logo"
+  },
+  {
+    "title": "מסלול Pollinations מפיק לוגו אטום עם רקע — לא שקוף",
+    "file": "lib/services/image-gen.ts",
+    "line": 117,
+    "problem": "אומת. generateImage מנסה Gemini קודם (שורה 217 קוראת ל-callPollinations רק אחרי לולאת Gemini), ו-whiteToAlpha נקרא אך ורק במסלול Gemini (שורה 103). callPollinations (110-153) מתעד במפורש בהערה שאין תמיכת אלפא ושמסירים OPAQUE, ומוסיף לפרומפט `The design sits on a clean plain studio background.` (שורה 123) — כלומר ריבוע אטום. **תיקון לניסוח הממצא**: (א) `background: \"transparent\"` שמועבר ב-logo-options/route.ts:100 אינו \"חסר כל השפעה\" — הוא כן משנה את הפרומפט (שורה 123), רק לא מפיק אלפא. (ב) הטענה ש\"יושב בלוק אטום בתוך הדר לבן\" נכונה רק ל-landing-page.tsx:70; ב-product/[productId]/page.tsx:178, blog/page.tsx:69 ו-blog/[postId]/page.tsx:128 ההדר נדרס לשחור ע\"י tier-styles.tsx:328 — כלומר ריבוע בהיר אטום על שחור, גרוע יותר ממה שתואר.",
+    "fix": "**לא להפעיל whiteToAlpha על Pollinations** כפי שהוצע — ההערה בשורות 111-114 מתעדת החלטה מפורשת שהקילוף שם יוצא מוכתם (\"blotchy\") כי הרקעים רועשים; זו סתירה ישירה לשיקול שכבר נשקל בקוד.\nהפתרון הנכון: משטח מכוון לכל אתרי התצוגה — בדיוק אותו תיקון שסוגר גם את שני הממצאים הקריטיים הקודמים. ב-landing-page.tsx:70, product/[productId]/page.tsx:178, blog/page.tsx:69, blog/[postId]/page.tsx:128 להוסיף `rounded-lg bg-white/90 p-1 ring-1 ring-black/5` — כך ריבוע אטום נראה ככרטיס לוגו מכוון ולא כתמונה תקועה.\nבנוסף כדאי לחדד את שורה 123 ל-`The design sits on a plain solid pure white #FFFFFF background, no shadow, no gradient, no texture.` — זה משפר את המראה גם בלי קילוף.",
+    "severity": "high",
+    "category": "image-quality",
+    "area": "logo"
+  },
+  {
+    "title": "אין ולידציה או נרמול של לוגו שהלקוח מעלה",
+    "file": "lib/actions/design.ts",
+    "line": 24,
+    "problem": "אומת. validImage (שורות 24-31) בודקת רק `file.size > 0`, `<= 12MB` ו-regex MIME. uploadLogoAction מעלה `Buffer.from(await file.arrayBuffer())` גולמי (שורות 44-49) — אין בדיקת מימדים, אין רזולוציה מינימלית, אין trim, אין resize. sharp הוא תלות ישירה (package.json:39) וכבר בשימוש ב-lib/services/image-gen.ts:45 שהקובץ הזה מייבא ממנו. פועל יוצא מאומת מול אתרי התצוגה: לוגו 120×40 מוצג ב-h-8 (32px) שדורש 64px ב-2x — טשטוש ודאי; קובץ 11MB נטען בכל עמוד בהדר sticky.",
+    "fix": "שלב נרמול ב-uploadLogoAction לפני uploadSiteAsset, רק כשה-MIME אינו svg+xml:\n```ts\nconst sharp = (await import(\"sharp\")).default;\nconst raw = Buffer.from(await file.arrayBuffer());\nlet body: Buffer = raw; let outType = file.type;\nlet ext = file.type === \"image/svg+xml\" ? \"svg\" : \"png\";\nif (file.type !== \"image/svg+xml\") {\n  const img = sharp(raw).rotate();\n  const meta = await img.metadata();\n  if ((meta.width ?? 0) < 200 || (meta.height ?? 0) < 80)\n    return { error: \"הלוגו קטן מדי — נדרשים לפחות 200×80 פיקסלים כדי שלא ייראה מטושטש\" };\n  body = await img\n    .trim({ threshold: 12 })\n    .resize({ width: 1024, height: 512, fit: \"inside\", withoutEnlargement: true })\n    .png({ compressionLevel: 9 })\n    .toBuffer();\n  outType = \"image/png\";\n}\n```\nולהעביר body/outType/ext ל-uploadSiteAsset במקום החישוב הנוכחי בשורה 43. שימו לב ש-`.rotate()` חייב לבוא לפני metadata כדי ש-EXIF orientation לא יהפוך את המימדים.",
+    "severity": "high",
+    "category": "image-quality",
+    "area": "logo"
+  },
+  {
+    "title": "whiteToAlpha מחורר גוונים בהירים לגיטימיים בתוך הלוגו",
+    "file": "lib/services/image-gen.ts",
+    "line": 50,
+    "problem": "אומת, כולל החשבון. הלולאה בשורות 49-54 קובעת אלפא לפי `Math.min(R,G,B)` על כל פיקסל בפריים: `>= 250` → אלפא 0, ו-232..250 → רמפה `((250-min)/18)*255`. פיקסל ivory #FFFFF0 (min=240) מקבל אלפא round(141.6)=142 מתוך 255 — 44% שקיפות בתוך העיצוב עצמו. טקסט לבן טהור בתוך מדליון כהה (min=255) נמחק לחלוטין ונהפך לחור. זה בדיוק הגוון שהפרומפט ב-logo-options/route.ts:40 מורה לבקש (\"אם דרוש גוון בהיר, בקש ivory/off-white\"), ו-WHITE_BG_SUFFIX ב-image-gen.ts:32-33 חוזר על אותה הוראה. הערה: הפגם פעיל רק במסלול Gemini (whiteToAlpha נקרא רק בשורה 103), לא במסלול Pollinations.",
+    "fix": "לקלף רק את רכיב הרקע המחובר לשוליים. להחליף את הלולאה בשורות 49-54 ב-flood-fill מארבע הפינות:\n```ts\nconst { width: W, height: H } = info;\nconst seen = new Uint8Array(W * H);\nconst stack: number[] = [0, W - 1, (H - 1) * W, H * W - 1];\nconst near = (p: number) =>\n  Math.min(data[p*4], data[p*4+1], data[p*4+2]) >= 232;\nwhile (stack.length) {\n  const p = stack.pop()!;\n  if (p < 0 || p >= W * H || seen[p] || !near(p)) continue;\n  seen[p] = 1;\n  const x = p % W;\n  if (x > 0) stack.push(p - 1);\n  if (x < W - 1) stack.push(p + 1);\n  stack.push(p - W, p + W);\n}\nfor (let p = 0; p < W * H; p++) {\n  if (!seen[p]) continue;\n  const min = Math.min(data[p*4], data[p*4+1], data[p*4+2]);\n  data[p*4+3] = min >= 250 ? 0\n    : Math.min(data[p*4+3], Math.round(((250 - min) / 18) * 255));\n}\n```\nשאר הפונקציה (שורות 55-57) נשארת. כך לבן פנימי — טקסט, הבהובים, ivory — נשאר אטום ורק הרקע נעלם.",
+    "severity": "high",
+    "category": "image-quality",
+    "area": "logo"
+  },
+  {
+    "title": "אין חיתוך שוליים שקופים אחרי הקילוף — הלוגו מוצג קטן מהנדרש",
+    "file": "lib/services/image-gen.ts",
+    "line": 55,
+    "problem": "אומת. whiteToAlpha מחזיר בשורות 55-57 את הקנבס בגודלו המקורי — 1024×1024 לפי logo-options/route.ts:100 — ללא trim. אחרי הקילוף השוליים הנדיבים שהמחוללים מוסיפים הופכים לשוליים שקופים שנשארים חלק מהתמונה, ו-object-contain מקצה להם את אותו נתח מהתיבה. בתיבה של 40px (app/s/[slug]/page.tsx:797) או h-8 (landing-page.tsx:70) הסימן הנראה יורד משמעותית ליד שם מותג ב-text-lg, והשיעור משתנה בין רנדר לרנדר. כמו הממצא הקודם — רלוונטי למסלול Gemini בלבד.",
+    "fix": "בסוף whiteToAlpha, במקום שורות 55-57:\n```ts\nreturn sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })\n  .trim({ threshold: 1 })\n  .extend({ top: 24, bottom: 24, left: 24, right: 24,\n            background: { r: 0, g: 0, b: 0, alpha: 0 } })\n  .png()\n  .toBuffer();\n```\nלבצע רק אחרי תיקון ה-flood-fill מהממצא הקודם — עם הלולאה הנוכחית, trim על תמונה שבה לבן פנימי נמחק עלול לחתוך לתוך העיצוב.",
+    "severity": "medium",
+    "category": "image-quality",
+    "area": "logo"
+  },
+  {
+    "title": "אותו לוגו מקבל שתי צורות שונות בין העמוד הראשי לעמודים הפנימיים",
+    "file": "app/s/[slug]/product/[productId]/page.tsx",
+    "line": 178,
+    "problem": "אומת בכל חמשת המקומות. ההדר הראשי: `size-10 rounded-xl object-contain` (app/s/[slug]/page.tsx:797) — ריבוע 40×40 עם פינות מעוגלות. עמוד המוצר (שורה 178), blog/page.tsx:69, blog/[postId]/page.tsx:128 ו-landing-page.tsx:70: `h-8 w-auto object-contain` — גובה שונה, רוחב חופשי, בלי rounded. גולש שעובר בין עמודים רואה את הלוגו קופץ בגודל ובפרופורציה. בנוסף אומת שהעמוד הראשי מציג `<span className=\"text-lg font-bold\">{brandName}</span>` בשורה 806 *לצד* הלוגו, בעוד העמודים הפנימיים מציגים לוגו **או** שם — לא שניהם.",
+    "fix": "לחלץ קומפוננטת `SiteLogo` אחת ולהשתמש בה בכל חמשת המקומות עם קלאס יחיד (`h-9 w-auto max-w-[168px] shrink-0 object-contain` + משטח הרקע מהממצא הראשון).\n**תיקון לניסוח התיקון המקורי**: העמודים הפנימיים כבר נופלים חזרה ל-`<span>{brandName}</span>` כשאין לוגו (product:180, blog:70, blog/[postId]:129) — החוסר הפוך: הם לא מציגים את השם *כשיש* לוגו. לכן היעד הוא לוקאפ אחיד — לוגו + שם תמיד, כמו ב-page.tsx:792-806 — ולא הוספת fallback שכבר קיים.",
+    "severity": "high",
+    "category": "consistency",
+    "area": "logo"
+  },
+  {
+    "title": "אין מימדים מפורשים על תגי הלוגו — קפיצת פריסה בהדר",
+    "file": "components/public/landing-page.tsx",
+    "line": 70,
+    "problem": "אומת. אין ולו שימוש אחד ב-next/image בכל app/ ו-components/ (grep ריק), וכל 12 תגי הלוגו הם `<img>` גולמי בלי width/height. בארבעת המקרים של `h-8 w-auto` (landing-page.tsx:70, product/[productId]/page.tsx:178, blog/page.tsx:69, blog/[postId]/page.tsx:128) הרוחב אינו ידוע עד סיום הטעינה, ולכן תוכן ההדר זז אופקית ברגע שהלוגו נכנס.",
+    "fix": "**לא להשתמש ב-`width={168} height={32}` כפי שהוצע** — הערכים האלה מקבעים יחס 21:9, אבל הנכס בפועל הוא או 512×256 (2:1, site-design.ts:24) או 1024×1024 (1:1, logo-options/route.ts:100). ניחוש יחס שגוי לא מונע את הקפיצה אלא מזיז אותה.\nהתיקון הנכון הוא לנעול את התיבה, לא לנחש את התמונה. ב-landing-page.tsx:68 (ה-<div> העוטף) → `className=\"flex min-w-0 items-center gap-2\"` + לעטוף את ה-<img> ב-`<span className=\"flex h-8 w-[140px] items-center\">`, ולהוסיף על התג `decoding=\"async\" fetchPriority=\"high\"`. אותו טיפול בשלושת האתרים הנוספים. (הטענה שהלוגו הוא ה-LCP של דף הנחיתה לא נתמכת — ה-hero גדול ממנו בסדרי גודל; הפגיעה היא ב-CLS בלבד.)",
+    "severity": "low",
+    "category": "responsive",
+    "area": "logo"
+  },
+  {
+    "title": "התצוגה המקדימה בסטודיו לא מייצגת את מה שהאתר באמת מציג",
+    "file": "components/business/design-studio.tsx",
+    "line": 226,
+    "problem": "אומת במלואו. שורה 226: `h-12 w-24 rounded-lg border object-contain ${logoBg === \"dark\" ? \"bg-zinc-900\" : \"bg-white\"}` — תיבה ביחס 2:1. האתר האמיתי מציג ריבוע 40×40 (page.tsx:797) על הדר rgba(0,0,0,.72) (tier-styles.tsx:328). מתג בהיר/כהה נמצא בשורות 283-300, בתוך הבלוק `{options.length > 0 && (` שנפתח בשורה 279 — כלומר מוצג רק אחרי \"צור 3 הצעות AI\". `logoBg` מאותחל ל-\"light\" בשורה 47, ולכן בעל עסק שהעלה לוגו משלו (הכפתור בשורות 270-274) רואה תמיד רקע לבן ולעולם לא מגלה שהלוגו שלו נעלם בהדר.",
+    "fix": "להעביר את ה-<div> של המתג (שורות 283-300) אל שורת הכותרת בשורה 221, מחוץ לתנאי `options.length > 0`, ולהתאים את תיבת התצוגה למה שהאתר מרנדר:\nשורה 226 → ``className={`h-10 w-auto max-w-[168px] rounded-lg border object-contain p-1 ${logoBg === \"dark\" ? \"bg-zinc-900\" : \"bg-white\"}`}``\nולהוסיף תווית: `<p className=\"text-[10px] text-muted-foreground\">כך הלוגו ייראה בהדר האתר (רקע כהה)</p>`. שווה גם לאתחל `logoBg` ל-\"dark\" (שורה 47) — זה מצב ההדר בפועל בכל אתר.",
+    "severity": "medium",
+    "category": "consistency",
+    "area": "logo"
+  },
+  {
+    "title": "SVG שהלקוח מעלה נשמר בלי sanitizeSvg שכבר קיים בפרויקט",
+    "file": "lib/actions/design.ts",
+    "line": 42,
+    "problem": "אומת. validImage מתירה `image/svg+xml` (regex בשורה 29) ו-uploadLogoAction מעלה את הבייטים הגולמיים ל-bucket הציבורי site-assets (שורות 44-49) בלי סינון. sanitizeSvg קיימת ב-lib/services/svg-design.ts:328 (חוסמת <script>, javascript:, onload/onclick/onerror, <foreignObject>, <filter>, <image>, href=\"http) ומופעלת על SVG שה-AI מייצר — lib/jobs/handlers/site-design.ts:79 — כלומר תוכן פנימי מסונן ותוכן חיצוני לא. **תיקון לנימוק המקורי**: הכפתור ב-design-studio.tsx:239 *אינו* פותח את ה-URL ישירות — downloadLogo (שורות 62-79) עושה fetch → Blob → objectURL. החשיפה האמיתית היא ש-uploadSiteAsset מחזיר URL ציבורי של Supabase Storage שמוגש עם contentType=image/svg+xml, נשמר כ-brand_assets.logo_url, וניתן לניווט ישיר — שם SVG מרונדר כמסמך ולא כ-<img>.",
+    "fix": "להחיל את אותו סינון גם על העלאה, ב-uploadLogoAction לפני uploadSiteAsset:\n```ts\nlet body: Buffer | string = Buffer.from(await file.arrayBuffer());\nif (file.type === \"image/svg+xml\") {\n  const clean = sanitizeSvg(body.toString(\"utf8\"));\n  if (!clean) return { error: \"קובץ ה-SVG מכיל אלמנטים שאינם נתמכים (סקריפטים, פילטרים או תמונות מוטמעות) — נסו PNG\" };\n  body = clean;\n}\n```\nעם `import { sanitizeSvg } from \"@/lib/services/svg-design\";`. שימו לב: sanitizeSvg חוסמת גם <filter> ו-<image>, שקיימים בלוגואים לגיטימיים מיוצאים מ-Illustrator — לכן הודעת השגיאה חייבת להסביר בדיוק מה נדחה, כמו בנוסח לעיל.",
+    "severity": "medium",
+    "category": "consistency",
+    "area": "logo"
+  },
+  {
+    "title": "הלוגו לא הופך ל-favicon של האתר שנבנה",
+    "file": "app/s/[slug]/page.tsx",
+    "line": 166,
+    "problem": "אומת. generateMetadata (שורות 166-181) מחזיר title, description, keywords, alternates, openGraph ו-twitter — ואין בו `icons` כלל. אין קובץ icon/apple-icon בשום מקום תחת app/s (find החזיר רק את app/favicon.ico הגלובלי), כלומר כל אתר לקוח מציג בלשונית את הפאביקון של הפלטפורמה. גם בלוק ה-openGraph (שורות 176-178) מוסיף images רק כשקיים hero_image_url, בלי נפילה חזרה ללוגו. `site.brand?.logo_url` זמין באותו scope (אותו getPublicSiteBySlug, ראה שימוש בשורה 240).",
+    "fix": "בתוך ה-return של generateMetadata:\n```ts\n...(site.brand?.logo_url\n  ? { icons: { icon: [{ url: site.brand.logo_url }], apple: [{ url: site.brand.logo_url }] } }\n  : {}),\n```\nוב-openGraph להוסיף fallback ללוגו כשאין hero_image_url. הסתייגות: logo_url עשוי להיות PNG 1024×1024 (logo-options/route.ts:100) — כבד מדי לפאביקון; עדיף להצביע על גרסת התצוגה המוקטנת מהממצא הבא, אם היא תיווצר.",
+    "severity": "medium",
+    "category": "polish",
+    "area": "logo"
+  },
+  {
+    "title": "PNG של 1024×1024 מוגש לתיבה של 32-40 פיקסל בכל עמוד",
+    "file": "app/api/businesses/[businessId]/design/logo-options/route.ts",
+    "line": 100,
+    "problem": "אומת. שורה 100: `generateImage(c.prompt, \"1024x1024\", { quality: \"high\", background: \"transparent\" })`, והתוצר נשמר כמו שהוא בשורה 109 (`uploadSiteAsset(...logo-opt-...png, s.value, \"image/png\")`). chooseLogoAction (lib/actions/design.ts:84-96) רק מציב את אותו URL כ-logo_url בלי לייצר גרסה מוקטנת. אותו קובץ מוגש אחר כך בהדר sticky בגודל 40px (page.tsx:797) ו-32px (landing-page.tsx:70) — בלי srcset ובלי גרסת תצוגה. בנוסף אומת ש-uploadSiteAsset (image-gen.ts:248-251) לא מעביר cacheControl כלל, ולכן נשמר ברירת המחדל של Supabase (3600 שניות) — למרות שה-URL כבר cache-busted ב-`?v=${Date.now()}` (שורה 255) ולכן יכול להיות אימיוטבילי.",
+    "fix": "החצי הזול והבטוח קודם — image-gen.ts:250 → `.upload(path, data, { contentType, upsert: true, cacheControl: \"31536000\" })`. ה-`?v=` בשורה 255 כבר מבטיח שגרסה חדשה מקבלת URL חדש, אז אין סיכון לתוכן מיושן.\nובנוסף, ב-chooseLogoAction (lib/actions/design.ts:84) לייצר גרסת תצוגה ולשמור אותה כ-logo_url (עם המקור נשמר בנפרד):\n```ts\nconst src = Buffer.from(await (await fetch(url)).arrayBuffer());\nconst small = await (await import(\"sharp\")).default(src)\n  .resize({ height: 256, fit: \"inside\", withoutEnlargement: true }).png().toBuffer();\nconst displayUrl = await uploadSiteAsset(`${businessId}/logo-display.png`, small, \"image/png\");\n```\nלדלג על השלב הזה כשה-URL מסתיים ב-.svg (הנתיב הדיפולטי מ-site-design.ts) — שם resize מיותר.",
+    "severity": "medium",
+    "category": "image-quality",
+    "area": "logo"
+  },
+  {
+    "title": "לוגו שותף רחב יכול לפרוץ את שורת השותפים במובייל",
+    "file": "components/public/partners-section.tsx",
+    "line": 34,
+    "problem": "אומת. שורה 34: `<img src={p.logo_url} alt={p.name} className=\"h-10 object-contain\" />` — גובה קבוע בלי חסם רוחב. ה-<img> יושב בתוך <div> (שורה 39) שהוא flex-item של הקונטיינר בשורה 30 (`flex flex-wrap items-center justify-center gap-8`). ל-flex-item יש min-width:auto כברירת מחדל, ולכן הוא לא יתכווץ מתחת לרוחב התוכן: לוגו שותף פנורמי ביחס 10:1 מקבל רוחב פנימי של ~400px, ובמסך צר גורם לגלישה אופקית של הסקשן.",
+    "fix": "שורה 34 → `<img src={p.logo_url} alt={p.name} className=\"h-10 w-auto max-w-[140px] object-contain\" />`\nהחצי השני של התיקון המקורי (העלאת `opacity-60` ל-70%) נדחה — זו העדפת טעם, וזו קונבנציה מקובלת לשורות שותפים. אם בכל זאת נוגעים בשורה 39, ההוספה היחידה שמוסיפה ערך היא `hover:grayscale-0` — `hover:opacity-100` כבר קיים שם.",
+    "severity": "low",
+    "category": "responsive",
+    "area": "logo"
+  },
+  {
+    "title": "טקסט alt של הלוגו לא עקבי, וכפול לצד שם המותג",
+    "file": "app/invoice/[id]/page.tsx",
+    "line": 64,
+    "problem": "אומת בכל חמשת המקומות: `alt=\"\"` בחשבונית (שורה 64) ובכפתור ה-PDF (quote-pdf-button.tsx:151), `alt={brandName}` בעמודי מוצר (178), בלוג (69), פוסט בלוג (128), נחיתה (70) ובעמוד הצעת המחיר (q/[token]:166), ו-`alt={`לוגו ${brandName}`}` בהדר הראשי (app/s/[slug]/page.tsx:796) ובאזור החשבון (account/layout.tsx:40). בשני האחרונים ה-alt אכן מיותר — מיד אחרי ה-<img> מופיע `<span className=\"text-lg font-bold\">{brandName}</span>` (page.tsx:806, account/layout.tsx:50), כך שקורא מסך מכריז את שם העסק פעמיים ברצף בתוך אותו קישור.",
+    "fix": "בהדר הראשי (page.tsx:796) ובאזור החשבון (account/layout.tsx:40) — כשהשם מוצג גם כטקסט — `alt=\"\"` + `aria-hidden=\"true\"`. בעמודי מוצר/בלוג/נחיתה, שבהם הלוגו הוא התוכן היחיד בקישור הבית, להשאיר `alt={brandName}` (ואם מיישמים את ממצא האחידות ומוסיפים שם טקסט לצדו — להעביר גם אותם ל-alt=\"\"). בחשבונית (invoice:64) ובכפתור ה-PDF (quote-pdf-button.tsx:151) `alt=\"\"` כבר נכון — להוסיף שם `aria-hidden=\"true\"` לעקביות בלבד.",
+    "severity": "low",
+    "category": "accessibility",
+    "area": "logo"
+  },
+  {
+    "title": "טקסט לבן על מילוי מותג — קריסת ניגודיות בצבעי מותג בהירים־רוויים",
+    "file": "components/public/landing-page.tsx",
+    "line": 115,
+    "problem": "אומת בקוד. כל משטח במילוי מותג מקבע text-white בקשיחות: שורה 77 (CTA בהדר), 114-115 (CTA ההירו), 159 (עיגול מספר בפתרון), 187 (עיגול Check ביתרונות), 344 (סקשן ה-CTA כולו: text-white + style background: brand), 422 (סרגל הפעולה הדביק במובייל). המקור של brand הוא pickBrandColor ב-lib/storefront-brand.ts:17, והמסנן היחיד הוא isLight = R+G+B > 660 (שורות 5-14) — #FACC15 מסתכם ב-475 ולכן נבחר כצבע מותג לגיטימי. לבן על #FACC15 ≈ 1.5:1. אומת גם שאין שום helper ניגודיות משותף: grep על lib/ ו-components/ עבור readableOn|contrastColor|onBrand|luminance החזיר אפס. קיים כזה, אבל מקומי ולא מיוצא — inkOn ב-app/q/[token]/page.tsx:48-54 (בדיוק sRGB-linear luminance עם סף 0.55). בונוס שאומת: shadow-lg בשורה 114 מת לגמרי, כי ה-boxShadow ה-inline בשורה 115 דורס אותו.",
+    "fix": "להעביר את inkOn הקיים מ-app/q/[token]/page.tsx:48-54 ל-lib/storefront-brand.ts כ-export (במקום לכתוב helper שלישי), ולהשתמש בו בכל משטח מותג. שורות 114-115: להסיר text-white מה-className, ו-style={{ background: brand, color: inkOn(brand), boxShadow: `0 18px 40px -16px ${brand}80` }} (שים לב: הקוד היום הוא `0 18px 40px -16px ${brand}` בלי אלפא — הצל יוצא אטום מדי). אותו טיפול בשורות 77, 159, 187, 344 ו-422. בשורה 344 גם text-white/85 (349) ו-text-white/80 (360) צריכים להיגזר מה-ink, אחרת הכותרת תתוקן והמשנה תישאר בלתי קריאה.",
+    "severity": "critical",
+    "category": "color",
+    "area": "landing-top"
+  },
+  {
+    "title": "צבע המותג כטקסט/אייקון על רקע לבן — אותו כשל בכיוון ההפוך",
+    "file": "components/public/landing-page.tsx",
+    "line": 101,
+    "problem": "אומת. הבאדג' בהירו (99-101) שם color: brand על ${brand}1a מעל גרדיינט ~לבן; הכותרת \"זה בשבילכם אם…\" (212) ואייקוני ה-Check (218) שמים color: brand ישירות על רקע לבן (סקשן 5 בשורה 205 בלי bg משלו, יורש bg-white משורה 63); ה-border בשורה 211 הוא ${brand}33 (20%) — כמעט בלתי נראה. אומת גם מקרה שהממצא פספס: כפתור ה-CTA בשורות 362-365 הוא bg-white עם style={{ color: brand }} — זהו כפתור ההמרה האחרון של הדף, ובצבע מותג בהיר הטקסט שלו נעלם לחלוטין. גם Quote בשורה 301 הוא color: brand ב-opacity-25 מעל bg-white.",
+    "fix": "להפריד brand-as-surface מ-brand-as-ink, אבל לא בהיסט קבוע — color-mix(in oklab, X 100%, black 22%) שהוצע מוריד את #FACC15 רק ל-~2.3:1 מול לבן, עדיין נכשל. במקום זה helper אדפטיבי לצד inkOn ב-lib/storefront-brand.ts: להחשיך את המותג בלולאה (או בקפיצות של 8% ב-oklab) עד שיחס הניגודיות מול #ffffff ≥ 4.5, ולהחזיר את התוצאה כ-brandInk. ואז: שורה 101 → style={{ background: `${brand}1f`, color: brandInk }}; שורות 212, 218, 365 → color: brandInk; שורה 211 → borderColor: `${brand}4d`. לשורה 301 אין צורך — היא דקורטיבית ב-opacity-25.",
+    "severity": "high",
+    "category": "color",
+    "area": "landing-top"
+  },
+  {
+    "title": "דף הנחיתה הוא העמוד הציבורי היחיד שלא מקבל את מערכת הטוקנים של ה-tier",
+    "file": "components/public/landing-page.tsx",
+    "line": 86,
+    "problem": "אומת. app/s/[slug]/page.tsx חוזר מוקדם ב-266-313 עבור landing mode; data-tier ו-<TierStyles> מופיעים רק בענף website/store (738-742). ה-CSS של ה-reveal ב-tier-styles.tsx מקונן תחת `.js-reveal [data-tier=\"professional\"] [data-reveal]` — כלומר בלי ה-data-tier הדף מקבל רק את הבסיס משורה 292 (translateY(26px), transition .7s ease) במקום 400/800ms cubic-bezier(.22,.8,.3,1). אומת גם שההירו כאן (86-120) הוא בלוק טקסט ממורכז max-w-3xl על גרדיינט + כתם blur יחיד, בעוד components/public/heroes מכיל orbit/spotlight/vanguard עם גריד דו-טורי (orbit-hero.tsx:117). החלק הראשון עובדתי; \"החלש ביותר ויזואלית\" הוא שיפוט, ולכן הורדתי ל-medium.",
+    "fix": "לא לעטוף ב-TierStyles — ה-tier כהה וממפה מחדש .bg-white, זה ישבור את הדף (הערכה נכונה). לאמץ את הטוקנים מקומית בבלוק ה-<style> שכבר קיים ב-page.tsx:290-297, שממילא נטען רק בענף הנחיתה: להחליף `transition: opacity .7s ease, transform .7s ease` ב-`transition: opacity .4s cubic-bezier(.22,.8,.3,1), transform .8s cubic-bezier(.22,.8,.3,1)` ו-translateY(26px)→32px, כדי לקבל את אותו easing כמו שאר המוצר. עוגן ויזואלי בהירו: לרנדר את logoUrl ב-size-16 מעל הבאדג' כשהוא קיים (הפרופ כבר מועבר, שורה 40) — שינוי זול שלא נוגע בשאר הפריסה.",
+    "severity": "medium",
+    "category": "consistency",
+    "area": "landing-top"
+  },
+  {
+    "title": "ההדר וסקשן 5 חורגים מרוחב התוכן של שאר הדף",
+    "file": "components/public/landing-page.tsx",
+    "line": 206,
+    "problem": "אומת חלקית ומדויק במקומות שנטענו: שורה 66 (הדר) max-w-6xl, שורה 206 (סקשן 5) max-w-4xl, מול max-w-5xl בשורות 124, 150, 176, 242, 291. בדסקטופ ≥1152px הלוגו וה-CTA בהדר יושבים 64px מחוץ לקצה כל התוכן, וסקשן \"למי מתאים\" נכנס 64px פנימה ביחס לגריד היתרונות שמעליו ולגלריה שמתחתיו — שתי קפיצות אמיתיות. סייג: הטענה \"אין רשת אחת\" מוגזמת — max-w-3xl בסרטון (272) וב-FAQ (322) ו-max-w-xl בטופס (374) הם צמצום measure מכוון לטקסט/טופס, ואומת ש-max-w-5xl הוא רוחב התוכן הדומיננטי בכל components/public (19 מופעים).",
+    "fix": "רק שתי החריגות האמיתיות: שורה 66 max-w-6xl → max-w-5xl (מיישר את ההדר לכל הסקשנים), ושורה 206 max-w-4xl → max-w-5xl (מיישר את סקשן 5 לסקשנים 4 ו-6 שעוטפים אותו). לא לגעת ב-max-w-3xl/max-w-xl של סרטון, FAQ וטופס — אלה מגבלות measure מכוונות.",
+    "severity": "medium",
+    "category": "alignment",
+    "area": "landing-top"
+  },
+  {
+    "title": "כותרות H2 בלי חסימת measure בשלושה סקשנים",
+    "file": "components/public/landing-page.tsx",
+    "line": 177,
+    "problem": "אומת. בסקשנים 2, 3 ו-6 הכותרת והאינטרו עטופים ב-div mx-auto max-w-2xl text-center (125, 151, 243), כך שהכותרת נשברת ב-42rem. בסקשן 4 (177-179) ובסקשן 5 (207-209) ה-h2 ממורכז ישירות במיכל 64rem/56rem בלי חסימה. אומת מקרה נוסף שהממצא פספס: סקשן 8 (ביקורות), שורות 292-294, אותו דפוס בדיוק בתוך max-w-5xl. כותרת עברית ארוכה תימתח על כל 64rem — measure שבור מול שאר הסקשנים. אומת גם שרק ה-h1 (106) מקבל [text-wrap:balance].",
+    "fix": "לעטוף את שלוש הכותרות באותו wrapper כמו 125/151/243, או פשוט להוסיף mx-auto max-w-2xl ל-h2 עצמו בשורות 177, 207 ו-292: className=\"mx-auto max-w-2xl text-center text-3xl font-bold text-balance sm:text-4xl\". להוסיף text-balance גם ל-126, 152, 244, 323 כדי שכל חמש/שש הכותרות יתנהגו כמו ה-h1.",
+    "severity": "medium",
+    "category": "typography",
+    "area": "landing-top"
+  },
+  {
+    "title": "כותרות כרטיסים ללא מדרגה טיפוגרפית — נופלות ל-16px בגלל preflight",
+    "file": "components/public/landing-page.tsx",
+    "line": 138,
+    "problem": "אומת מול preflight.css של Tailwind v4 בפועל (node_modules/tailwindcss/preflight.css, \"Remove the default font size and weight for headings\" → font-size: inherit), כך שה-h3 יורש 16px/1.5. שורה 138 היא \"mt-4 font-semibold\", 164 \"mt-4 font-semibold\", ושורה 193 היא \"font-semibold\" בלבד — בלי mt-4, בניגוד לניסוח הממצא. התיאורים מתחת הם text-sm (139, 165, 194) — הפרש של 2px בלבד בין כותרת לגוף. אומת שזו גם חריגה מהמוצר: ברוב סקשני האתר כותרות הכרטיסים הן text-lg/text-xl font-bold (branches-section.tsx:49, courses-section.tsx:52, jobs-section.tsx:45, pricing-section.tsx:64, process-steps-section.tsx:72), כך שזה פער אמיתי ולא העדפה.",
+    "fix": "שורות 138, 164, 193: להוסיף text-lg leading-snug (ובשורה 193 גם לשמור על היעדר ה-mt כי שם ה-h3 הוא הילד הראשון ב-div של 192). התיאורים ב-139, 165, 194 יכולים להישאר text-sm — עם text-lg כבר נוצרת מדרגה של 4px + הבדל משקל, ואין צורך ב-text-[15px] שרירותי.",
+    "severity": "medium",
+    "category": "typography",
+    "area": "landing-top"
+  },
+  {
+    "title": "גלריה — כיתובים חלקיים יוצרים שורה משוננת, ו-figure בלי ring",
+    "file": "components/public/landing-page.tsx",
+    "line": 257,
+    "problem": "אומת. הסכמה מגדירה captions כ-\"3 כיתובים\" (lib/ai/schemas/landing.ts:62) בעוד galleryUrls הוא string[] חופשי (landing.ts:130, וה-parse בשורה 142-144 לא חוסם אורך). עם 4-5 תמונות, captions[i] ל-i≥3 הוא undefined והרנדר של ה-figcaption בשורה 257 מדולג. ה-figure הוא פריט גריד עם align-self: stretch כברירת מחדל, והתמונה נעולה ב-aspect-[4/3] (255) — כלומר הכרטיס נמתח לגובה השורה ומסתיים ברצועת bg-white ריקה בגובה הכיתוב של השכן. אומת גם שהשורה 249 היא הכרטיס היחיד בדף עם shadow-sm ובלי ring-1 ring-black/5, בניגוד ל-184 ול-299.",
+    "fix": "שורה 249: className=\"overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5\". לרצועה: לחשב פעם אחת const hasCaptions = gallery.some((_, i) => Boolean(landing.gallery.captions[i])) ולרנדר {hasCaptions && <figcaption className=\"px-4 py-3 text-sm text-zinc-600\">{landing.gallery.captions[i] || \" \"}</figcaption>} — nbsp ולא רווח רגיל, אחרת הרצועה קורסת לגובה 0 והפער חוזר.",
+    "severity": "medium",
+    "category": "polish",
+    "area": "landing-top"
+  },
+  {
+    "title": "סקאלת ריווח לא עקבית בין סקשנים בעלי אותו תפקיד",
+    "file": "components/public/landing-page.tsx",
+    "line": 129,
+    "problem": "אומת שורה-שורה. אותו מעבר כותרת→גריד: mt-12 ב-129, 155, 180, 295 אבל mt-10 ב-210, 247, 326. כותרת→אינטרו: mt-4 ב-127 ו-153 אבל mt-3 ב-245, 274 ו-377. מרווחי גריד: gap-5 ב-129, 180, 210, 295, gap-6 ב-155, gap-4 ב-247 — שלושה ערכים לאותה מטרה. אף אחד מההבדלים לא נובע מהבדל תוכן, וזה מה שמייצר תחושת \"כמעט מיושר\" בגלילה רציפה.",
+    "fix": "לקבע סקאלה אחת: כותרת→אינטרו mt-4 (127, 153, 245, 274, 377); כותרת→גריד mt-12 (129, 155, 180, 210, 247, 295, 326); מרווח גריד gap-6 (129, 155, 180, 210, 295). לגלריה (247) להשאיר gap-4 sm:gap-6 — שם המרווח הוא בין תמונות ולא בין כרטיסים, אבל אז זו החלטה מתועדת ולא סחף.",
+    "severity": "low",
+    "category": "spacing",
+    "area": "landing-top"
+  },
+  {
+    "title": "אנימציות hover ו-scroll-behavior לא מכבדות prefers-reduced-motion",
+    "file": "components/public/landing-page.tsx",
+    "line": 114,
+    "problem": "אומת. site-effects.tsx:14-19 אכן יוצא מוקדם כשההעדפה פעילה ולא מוסיף js-reveal, כך שה-reveal מכובד. אבל שורה 114 (CTA ההירו) ושורה 364 (CTA הסופי) עושות transition-transform hover:scale-[1.03] בלי שום שער. במקביל app/s/[slug]/page.tsx:291 מגדיר html { scroll-behavior: smooth } בלי media query — וכל ה-CTA-ים בדף (77, 113, 363, 421) מצביעים ל-#lead-form, כלומר כל המרה עוברת בגלילה מונפשת גם למשתמש עם reduced-motion.",
+    "fix": "שורות 114 ו-364: להוסיף motion-reduce:transition-none motion-reduce:hover:scale-100. ב-app/s/[slug]/page.tsx:291 (בתוך בלוק ה-<style> של ענף הנחיתה): @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }.",
+    "severity": "low",
+    "category": "accessibility",
+    "area": "landing-top"
+  },
+  {
+    "title": "הגריד מקובע לספירת פריטים שהסכמה לא אוכפת",
+    "file": "components/public/landing-page.tsx",
+    "line": 130,
+    "problem": "אומת. titledPoints הוא z.array בלי min/max (landing.ts:17-22), והמספרים מופיעים אך ורק בטקסט ה-describe (\"3 כאבים\" שורה 39, \"3 שלבים\" 45, \"4 יתרונות\" 50, \"4 משפטי\" 55). הרנדרר מקבע md:grid-cols-3 לבעיה (129) ולפתרון (155) ו-sm:grid-cols-2 ליתרונות (180). 4 נקודות בעיה או 5 יתרונות ייצרו שורה אחרונה עם כרטיס בודד. תיקון לתיאור: הדף RTL, ולכן היתום נוחת בעמודה הראשונה שהיא הימנית — לא \"משמאל\" כפי שנטען. גם audience.fits הוא z.array חופשי, אבל שם הרנדר הוא ul בטור אחד (215-222) ואין שום שבירת פריסה.",
+    "fix": "לאכוף בסכמה, שם הבעיה נוצרת: titledPoints לא יכול לקבל min/max גלובלי (הוא משותף), אז להחיל בנקודת השימוש — points: titledPoints.min(3).max(3) בשורות 39 ו-45, items: titledPoints.min(4).max(4) בשורה 50. בנוסף, כהגנה על תוכן שכבר שמור ב-DB, לחתוך ברנדרר: שורה 130 .slice(0, 3), 156 .slice(0, 3), 181 .slice(0, 4). לא לגעת ב-audience.fits (216) — אין שם גריד ואין מה להגן עליו.",
+    "severity": "low",
+    "category": "responsive",
+    "area": "landing-top"
+  },
+  {
+    "title": "קריסת margin בהירו כשאין באדג' — התוכן זז 20px למטה",
+    "file": "components/public/landing-page.tsx",
+    "line": 106,
+    "problem": "אומת. ה-div בשורה 97 הוא \"relative mx-auto max-w-3xl text-center\" — position: relative לא יוצר BFC, ואין padding/border/flex/grid. כשה-badge (98-105) ריק, ה-h1 עם mt-5 הופך לילד הראשון וה-margin שלו קורס דרך ה-div ומופיע מתחת ל-padding-top של ה-section (87), כלומר 20px נוספים מעל ההירו — דווקא בגרסה הקצרה יותר. שתי הגרסאות לא מתחילות באותו גובה. ה-transform של ה-reveal לא עוזר כאן: transform יוצר containing block, לא BFC.",
+    "fix": "להוסיף flex flex-col items-center ל-div בשורה 97 — יוצר BFC (עוצר את הקריסה) וגם נותן שליטה מפורשת. שים לב שזה משנה את פריסת הילדים: ה-h1 וה-p יתכווצו לרוחב התוכן במקום למלא, ולכן צריך להוסיף גם w-full ל-h1 (106) ול-p (109) כדי לשמר את ההתנהגות הנוכחית. חלופה בטוחה יותר שלא נוגעת בפריסה: להעביר את הריווח לאלמנט האופציונלי — mb-5 לבאדג' בשורה 100, והסרת mt-5 בשורה 106.",
+    "severity": "low",
+    "category": "spacing",
+    "area": "landing-top"
+  },
+  {
+    "title": "טקסט לבן על צבע המותג ללא בדיקת בהירות — CTA והסרגל הדביק עלולים להיות בלתי קריאים",
+    "file": "components/public/landing-page.tsx",
+    "line": 344,
+    "problem": "אומת בקוד: שורה 344 מקבעת text-white מעל style={{ background: brand }}, שורה 349 text-white/85, שורה 422 (סרגל דביק) text-white על brand, ושורה 77 (CTA בהדר) גם היא text-white על brand. brand מגיע מ-pickBrandColor (app/s/[slug]/page.tsx:97-104) שהמסנן היחיד שלו הוא isLight (שם, 85-94) הפוסל רק סכום RGB > 660 — לכן #FFD400 (סכום 467) מתקבל. לבן על #FFD400 נותן ~1.4:1, וכפתור bg-white בשורה 364 כמעט נעלם מול הרקע. בנוסף אומת ש-CountdownTimer מקבל onLight prop (countdown-timer.tsx:30) שאף קריאה בריפו לא מעבירה (grep: מופיע רק בתוך countdown-timer.tsx עצמו) — הענף הבהיר קיים אך מת.",
+    "fix": "לחשב לומיננסיה יחסית של brand פעם אחת ולבחור דיו: const ink = relLum(brand) > 0.5 ? '#111827' : '#ffffff'. להחליף text-white ב-style={{ color: ink }} בשורות 344, 422 ו-77, את text-white/85 (349) ו-text-white/80 (360) ב-opacity-90/80 על אותו ink, ובשורה 364 style={{ background: ink, color: brand }}. להעביר onLight={relLum(brand) > 0.5} ל-CountdownTimer בשורה 352 כדי להפעיל את הענף הקיים.",
+    "severity": "critical",
+    "category": "color",
+    "area": "landing-bottom"
+  },
+  {
+    "title": "הסרגל הדביק מכסה את השורה התחתונה של הפוטר במובייל",
+    "file": "components/public/landing-page.tsx",
+    "line": 407,
+    "problem": "אומת: הסרגל (sticky bottom-0 z-40 py-3, sm:hidden, גובה ~72px עם כפתור size-12 בשורה 415) יושב בתוך ה-div השורש (שורה 63) שמכיל גם את SiteFooter (430-443). מכיוון שהבלוק המכיל נמשך עד סוף המסמך, ה-sticky נשאר נעוץ בתחתית ה-viewport גם בגלילה מלאה ונצבע מעל הפוטר. הפוטר הוא py-12 (48px ריפוד תחתון), כך שהסרגל מכסה את 48px הריפוד ועוד ~24px מתוכן הסרגל התחתון (site-footer.tsx:156-174) — כלומר את השורה האחרונה שנגללה, שבמובייל היא אחת מ'הצהרת נגישות'/'נבנה עם'. אין ספייסר או ריפוד מפצה. (הניסוח המקורי הגזים: לא כל שורת הקופירייט מכוסה אלא ~24px מתחתית הבלוק.)",
+    "fix": "להוסיף ספייסר מובייל מיד אחרי </SiteFooter> (אחרי שורה 443, בתוך ה-div השורש): <div aria-hidden className=\"h-[76px] sm:hidden\" />.",
+    "severity": "medium",
+    "category": "responsive",
+    "area": "landing-bottom"
+  },
+  {
+    "title": "גבולות הפוטר וכרטיס הטופס נעלמים כשמערכת ההפעלה של המבקר במצב כהה",
+    "file": "components/public/site-footer.tsx",
+    "line": 49,
+    "problem": "אומת בשרשרת המלאה: site-footer.tsx:49 משתמש ב-border-t ללא צבע; app/globals.css:120-123 מחיל * { @apply border-border }; globals.css:28 ממפה --color-border ל-var(--border); globals.css:102 מגדיר תחת .dark את --border כ-oklch(1 0 0 / 10%); app/layout.tsx:39 מפעיל <ThemeProvider attribute=\"class\" defaultTheme=\"system\" enableSystem> ואין forcedTheme או איפוס בשום layout תחת app/s (נבדק app/s/[slug]/layout.tsx). לכן אצל מבקר עם OS כהה הקו העליון של הפוטר הוא לבן-10% מעל bg-zinc-50 — בלתי נראה. אותו דבר בכרטיס הטופס: site-lead-form.tsx:68 (border bg-white) ו-:53 (border bg-white) — הכרטיס מאבד מסגרת ומרחף על הלבן. הקלטים עצמם (שורה 62) כן קובעים border-zinc-200 ולכן שורדים.",
+    "fix": "לקבע צבע מפורש בכל משטח בהיר: site-footer.tsx:49 → border-t border-black/5; site-lead-form.tsx:68 ו-:53 → border border-black/10 (או ring-1 ring-black/5 כמו שאר הכרטיסים בעמוד).",
+    "severity": "high",
+    "category": "color",
+    "area": "landing-bottom"
+  },
+  {
+    "title": "אין safe-area inset בסרגל הדביק — הכפתורים נחתכים מתחת לפס הבית באייפון",
+    "file": "components/public/landing-page.tsx",
+    "line": 407,
+    "problem": "אומת: הסרגל משתמש ב-py-3 קבוע ואין בו env(safe-area-inset-bottom). באייפון עם home indicator 34 הפיקסלים התחתונים חופפים לאזור המערכת, כך שכפתור הוואטסאפ (415) וה-CTA (420-426) — האלמנטים היחידים שממירים במובייל — יושבים חלקית מתחת לפס. הריפו כבר מכיר בדפוס הזה: store-chat-widget.tsx:175 משתמש ב-paddingBottom: max(0.5rem, env(safe-area-inset-bottom)).",
+    "fix": "בשורה 407 להחליף py-3 ב-pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] (או style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }} בעקבות store-chat-widget). אם מוסיפים גם את הספייסר מהממצא הקודם — לעדכן את גובהו בהתאם.",
+    "severity": "medium",
+    "category": "responsive",
+    "area": "landing-bottom"
+  },
+  {
+    "title": "ל-FAQ אין אפורדנס פתיחה, ומחלקת group מתה",
+    "file": "components/public/landing-page.tsx",
+    "line": 331,
+    "problem": "אומת: ה-details בשורה 328-337 מקבל className=\"group\" אבל אין בתוכו אף וריאנט group-open:/group-hover: — המחלקה מתה. ה-summary (333) הוא list-none, והמרקר של וובקיט מוסתר ב-app/s/[slug]/page.tsx:294, כך שלפני לחיצה אין שום סימן שהשורות נפתחות: חמש שורות טקסט מודגש בקופסאות אפורות. הרמז היחיד הוא page.tsx:295 — details[data-faq][open] summary { color: brand } — כלומר משוב אחרי הלחיצה בלבד, לא אפורדנס לפניה. (הסתייגות: הטענה על היעדר ריווח בין שאלה לתשובה שגויה — ל-summary יש py-4, כלומר 16px מתחת לשאלה.)",
+    "fix": "להוסיף אייקון שמסתובב עם המצב, וכך גם להחיות את ה-group: summary className=\"flex cursor-pointer list-none items-center justify-between gap-3 py-4 font-semibold\" ובתוכו לצד הטקסט <ChevronDown className=\"size-4 shrink-0 text-zinc-400 transition-transform group-open:rotate-180\" /> (לייבא ChevronDown מ-lucide-react בשורה 1-9). אין צורך לגעת בריווח.",
+    "severity": "medium",
+    "category": "polish",
+    "area": "landing-bottom"
+  },
+  {
+    "title": "חמישה כוכבים מקובעים בכל ביקורת — דירוג שלא קיים בסכמה",
+    "file": "components/public/landing-page.tsx",
+    "line": 305,
+    "problem": "אומת: שורות 305-309 מרנדרות Array.from({length:5}) כוכבי amber מלאים עם aria-label=\"5 מתוך 5\" קבוע, בעוד סכמת ההמלצות (lib/ai/schemas/landing.ts:70-81) מכילה אך ורק name, role ו-quote — אין שדה rating, וגם הסוכן (lib/ai/agents/landing.ts) לא מייצר אחד. התוצאה: שלוש שורות זהות של 5/5 שאיש לא סיפק, שנקראות שלוש פעמים בקורא מסך — הצהרת דירוג מומצאת בסקשן שכל תפקידו אמינות.",
+    "fix": "להסיר את בלוק הכוכבים (305-309) לגמרי, או להוסיף rating: z.number().min(1).max(5) ל-landing.ts:74-78, לרנדר fill רק עד item.rating ולהגדיר aria-label={`${item.rating} מתוך 5`}.",
+    "severity": "medium",
+    "category": "consistency",
+    "area": "landing-bottom"
+  },
+  {
+    "title": "אנימציות hover:scale לא מכבדות prefers-reduced-motion",
+    "file": "components/public/landing-page.tsx",
+    "line": 364,
+    "problem": "אומת: שורה 364 (כפתור ה-CTA הסופי) ושורה 114 (כפתור ההירו) משתמשות ב-transition-transform hover:scale-[1.03] ללא סייג תנועה. שאר הריפו כן מכבד את ההעדפה בעקביות: site-effects.tsx:14-19 מבטל את אנימציות ה-reveal, וכך גם marquee-band.tsx:76, particle-field.tsx:46 וכל ההירואים. כלומר אותו מבקר שקיבל עמוד ללא reveal עדיין מקבל כפתור שקופץ.",
+    "fix": "בשורות 114 ו-364: motion-safe:transition-transform motion-safe:hover:scale-[1.03] במקום הווריאנטים ללא סייג.",
+    "severity": "low",
+    "category": "accessibility",
+    "area": "landing-bottom"
+  },
+  {
+    "title": "תוויות הטיימר ב-10.4px ובאטימות 70% — הטקסט הקטן והחלש בעמוד",
+    "file": "components/public/countdown-timer.tsx",
+    "line": 80,
+    "problem": "אומת: שורה 80 היא text-[0.65rem] = 10.4px עם text-white/70 בווריאנט הכהה (שהוא הווריאנט היחיד בפועל, כי onLight אף פעם לא מועבר) מעל רקע המותג. אפילו במותג ברירת המחדל #2563EB מדובר ב-~3.4:1 — מתחת ל-4.5:1 שנדרש לטקסט קטן, ובמותג בהיר יותר זה גרוע בהרבה. 10.4px גם קטן מכל טקסט אחר בעמוד (המינימום שם הוא text-xs=12px ב-privacyNote ובסרגל התחתון של הפוטר). (הסתייגות: הטענה על שבירת היישור ב-100 ימים לא אומתה — 3 ספרות ב-text-2xl עם px-3 עדיין נכנסות ב-min-w-[4.25rem]=68px; רק 4 ספרות ירחיבו את התיבה.)",
+    "fix": "שורה 80 → text-xs, ובווריאנט הכהה text-white/85 במקום /70 (ובווריאנט הבהיר text-zinc-600). אופציונלי לחסינות: שורה 69 → w-[4.5rem] במקום min-w-[4.25rem] כדי שארבע התיבות יישארו זהות גם בספירה של 1000+ ימים.",
+    "severity": "medium",
+    "category": "typography",
+    "area": "landing-bottom"
+  },
+  {
+    "title": "הפוטר במצב landing מציג שלוש עמודות שתיים מהן כמעט ריקות ומבוי סתום",
+    "file": "components/public/site-footer.tsx",
+    "line": 136,
+    "problem": "אומת משני הצדדים: landing-page.tsx:437-441 מעביר hasProducts=false, hasAbout=false, hasFaq=false, contactEnabled=false, hasHelpPage=false. בתוך site-footer.tsx זה מייצר עמודת 'עזרה' עם כותרת וקישור בודד ('תקנון האתר', 76-80) כי כל שאר ה-li מותנים, ואת עמודת הניוזלטר נופלת לענף השלישי (145-147) שמדפיס 'רוצים לשמוע עלינו ראשונים? עקבו אחרינו.' — משפט ללא שום דבר ללחוץ עליו, בדף שכל מטרתו לחיצה. רשת sm:grid-cols-3 עם gap-10 (שורה 50) נשארת בכל מקרה, כך שהפוטר נראה כשלד של פוטר חנות.",
+    "fix": "בענף 145-147 להפנות לטופס הליד במקום למשפט מת: <a href=\"#lead-form\" style={{ color: brand }} className=\"font-medium hover:underline\">השאירו פרטים</a> (העוגן קיים — landing-page.tsx:373). ולהתאים את הרשת בשורה 50 למספר העמודות שבפועל מלאות, למשל sm:grid-cols-2 כשאין ניוזלטר ואין קישורי עזרה מעבר לתקנון.",
+    "severity": "medium",
+    "category": "consistency",
+    "area": "landing-bottom"
+  },
+  {
+    "title": "מודולים לא מסומנים data-el=\"module-section\" — כותרות לבנות על רקע לבן (בלתי נראות)",
+    "file": "app/s/[slug]/page.tsx",
+    "line": 620,
+    "problem": "אומת בקוד. שורות 619-626: <div key=\"modules\"> ובתוכו <div key={m.key}>{moduleByKey[m.key]}</div> — שני העטיפות ללא data-el. אומת ב-grep שכל 20 קבצי ה-*-section.tsx של המודולים מחזירים 0 עבור data-el=\"module-section\". 10 מהם (לא 9) פותחים ב-<section className=\"bg-white px-4 py-16\">: testimonials:39, gallery:24, menu:37, pricing:28, blog:33, courses:26, donations:26, certifications:26 (py-14), partners:25 (py-14), before-after:24. הכללים ב-tier-styles.tsx:372-391 ([data-tier=\"professional\"] [data-el=\"module-section\"]{background:#000!important} וכל מיפוי ה-.bg-white/.text-zinc-*) לא חלים עליהם, ולכן הם נשארים לוחות לבנים באמצע עמוד שחור. הכותרות אומתו ללא מחלקת צבע: testimonials-section.tsx:41, gallery-section.tsx:26, menu-section.tsx:39, pricing-section.tsx:30, blog-section.tsx:36 — כולן <h2 className=\"mb-8 text-center text-3xl font-bold\">. שרשרת הירושה אומתה: app/globals.css:1 הוא @import \"tailwindcss\" (utilities בתוך @layer), בעוד tier-styles.tsx:321-325 [data-tier=\"professional\"]{color:#ffffff} הוא unlayered — ולכן מנצח את .text-zinc-900 שעל אותו div בדיוק (page.tsx:737-739). התוצאה: הכותרות יורשות לבן ונעלמות על bg-white. גם RentalsSection (rentals-section.tsx:22 bg-zinc-50) סובל מאותו דבר.",
+    "fix": "להעביר את data-el=\"module-section\" אל תג ה-<section> בתוך כל רכיב מודול (הרכיב מחזיר null כשאין תוכן, ולכן אין סיכון ל\"phantom band\" שההערה בשורות 613-618 חוששת ממנו) — במקום להוסיף wrapper div ב-page.tsx:624. להחיל את אותו תיקון גם על rentals-section.tsx:22. בנוסף להוסיף text-zinc-900 מפורש על כל <section> בהיר כרשת ביטחון.",
+    "severity": "critical",
+    "category": "color",
+    "area": "brochure-shell"
+  },
+  {
+    "title": "רשת כרטיסי השירותים יוצאת מחוץ ל-max-w-5xl — כותרת ממורכזת ב-1024px וכרטיסים ברוחב מלא",
+    "file": "app/s/[slug]/page.tsx",
+    "line": 479,
+    "problem": "אומת. שורה 473 פותחת <div className=\"relative mx-auto max-w-5xl\" data-reveal> שעוטף רק את ה-h2 (474) ופסקת ה-intro (475-477), ונסגרת בשורה 478. רשת הכרטיסים בשורה 479 <div className=\"grid gap-5 sm:grid-cols-2 lg:grid-cols-3\"> יושבת ישירות תחת ה-<section> (471) שיש לו רק px-4 py-16 — ללא max-w וללא mx-auto. במסך רחב הכותרת ממורכזת ב-1024px בעוד הכרטיסים נמתחים כמעט על כל הרוחב. אומת שזו הסקשן היחיד בקובץ שמתנהג כך: benefits (390) עוטף את הרשת ב-max-w-5xl של ה-section עצמו, about (414/444), faq (547) ו-contact (658) כולם עוטפים כותרת+תוכן באותו קונטיינר.",
+    "fix": "לתת לרשת קונטיינר משלה: <div className=\"relative mx-auto grid max-w-5xl gap-5 sm:grid-cols-2 lg:grid-cols-3\">, או להעביר את max-w-5xl mx-auto מה-div של שורה 473 אל ה-<section> בשורה 471 (כמו ב-benefits).",
+    "severity": "critical",
+    "category": "alignment",
+    "area": "brochure-shell"
+  },
+  {
+    "title": "פריסת \"מגזין\" (mosaic) שבורה — ה-SectionDivider תופס תא ברשת ודוחף את היתרונות לשורה שנייה",
+    "file": "app/s/[slug]/page.tsx",
+    "line": 716,
+    "problem": "אומת. שורה 716: <div key=\"about-benefits-mosaic\" className=\"grid items-start lg:grid-cols-2\">{aboutSection}{benefitsSection}</div>. aboutSection (408-466) הוא <Fragment key=\"about\"> שמכיל שני אלמנטים: <SectionDivider brand={brand} seed={.} /> בשורה 410 ואז <section id=\"about\"> בשורה 411. Fragment לא יוצר צומת DOM, ולכן ה-grid מקבל 3 ילדים: הדיוואידר (section-divider.tsx:38 — <div className=\"pointer-events-none relative h-8 w-full overflow-hidden sm:h-12\">), סקשן האודות, וסקשן היתרונות. ב-lg:grid-cols-2 מתקבל: שורה 1 = [דיוואידר | אודות], שורה 2 = [יתרונות | ריק]. הדיוואידר, שנועד להיות רוחב-מלא, מצטמצם לחצי עמודה. אומת ש-mosaic:true קיים רק ב-layout_style=\"portal\" (lib/site-layout.ts:159), ושבסדר הסקשנים שם \"about\" מגיע לפני \"benefits\" (145-147) — כלומר הענף אכן נתפס. בנוסף אין gap ברשת.",
+    "fix": "לפצל את aboutSection: לבנות aboutBody ללא הדיוואידר, ולרנדר בענף ה-mosaic <><SectionDivider brand={brand} seed={`${slug}-div-about`} /><div className=\"grid items-start gap-8 lg:grid-cols-2\">{aboutBody}{benefitsSection}</div></>. במקביל להסיר/להרחיב את ה-max-w-3xl הפנימי של about (שורה 444) כשהוא יושב בחצי עמודה.",
+    "severity": "high",
+    "category": "alignment",
+    "area": "brochure-shell"
+  },
+  {
+    "title": "כל רקעי הסקשנים המקודדים מתים — העמוד הוא עמודה שחורה אחת בלי הפרדה בין סקשנים",
+    "file": "app/s/[slug]/page.tsx",
+    "line": 655,
+    "problem": "אומת. lib/design-tier.ts:41,51 מחזיר \"professional\" תמיד. tier-styles.tsx:372-375 קובע [data-tier=\"professional\"] [data-el=\"module-section\"]{background:#000000!important; color:#e5e5e5} — ומכיוון שמדובר ב-!important על האלמנט עצמו (לא על צאצא), הוא דורס גם את bg-white של about (411), booking (523) ו-faq (545), וגם את ה-inline style={{background:`${brand}0d`}} של contact (655) — inline ללא !important מפסיד מול !important. אומת שיש בקובץ רק שני SectionDivider (410, 470). כלומר כל הסקשנים המסומנים רצים אחד לתוך השני על רקע שחור אחיד, כולל סקשן contact הסוגר שאמור להיות ה-CTA הבולט.",
+    "fix": "להוסיף שכבת הפרדה מפורשת ב-tier-styles: לסמן סקשנים נבחרים data-band=\"raised\" ולהגדיר [data-tier=\"professional\"] [data-el=\"module-section\"][data-band=\"raised\"]{background:#0b0b0d!important; border-block:1px solid rgba(255,255,255,.06)}; ולסקשן contact לתת data-band=\"cta\" עם כלל ייעודי [data-tier=\"professional\"] [data-band=\"cta\"]{background:radial-gradient(120% 100% at 50% 0%, color-mix(in srgb, var(--brand) 18%, transparent), #000 70%)!important}. הכללים הייעודיים חייבים לבוא אחרי שורה 373 בקובץ כדי לנצח.",
+    "severity": "high",
+    "category": "color",
+    "area": "brochure-shell"
+  },
+  {
+    "title": "סקאלת טיפוגרפיה שבורה — כל כותרות הסקשנים text-3xl קבוע מול hero שמגיע ל-6.5rem",
+    "file": "app/s/[slug]/page.tsx",
+    "line": 474,
+    "problem": "אומת. כל ה-h2 בקובץ מקודדים text-3xl (1.875rem) ללא breakpoint: services 474, about 416 ו-445, booking 525, faq 548, contact 659. ב-tier professional הכלל [data-el=\"section-title\"] (tier-styles.tsx:393-397) קובע רק font-weight:200, letter-spacing ו-color:#ffffff — ללא font-size, בניגוד ל-advanced (tier-styles.tsx:209) שיש לו font-size: clamp(1.75rem, 1.35rem + 1.8vw, 3.25rem). לעומת זאת ה-h1 של ההירו מקבל font-size: clamp(2.75rem, 2rem + 4vw, 6.5rem) (tier-styles.tsx:355), ותג data-el=\"hero\" אומת ב-store-hero.tsx:166. במסך רחב מתקבל hero של ~104px מול כותרות סקשן של 30px קבוע.",
+    "fix": "להוסיף ל-[data-tier=\"professional\"] [data-el=\"section-title\"] (tier-styles.tsx:393): font-size: clamp(1.75rem, 1.3rem + 1.6vw, 3rem); line-height: 1.15; (הכלל unlayered ולכן ידרוס את text-3xl ללא !important). ולהחליף text-3xl ב-text-3xl md:text-4xl בכותרות שאין להן data-el=\"section-title\" (order-tracker.tsx:76 וכותרות המודולים).",
+    "severity": "high",
+    "category": "typography",
+    "area": "brochure-shell"
+  },
+  {
+    "title": "סף isLight מקל מדי — טקסט לבן על צבע מותג בינוני נכשל בניגודיות",
+    "file": "app/s/[slug]/page.tsx",
+    "line": 92,
+    "problem": "אומת. isLight() (85-94) מחזיר true רק כש-R+G+B > 660 מתוך 765, ומשמש רק ב-pickBrandColor (101) כדי לפסול צבעים \"בהירים מדי\". צבע כמו #B8860B (סכום 329 — לא 337 כפי שנטען) או #C9A227 (סכום 402 — לא 366) עובר בקלות ונבחר כ-brand, ואז מקבל טקסט בהיר בשלושה מקומות: תג האות בהדר (800-805, text-white על backgroundColor:brand), פיל ה-CTA בניווט (820-826), והכפתור הצף (898-905, text-white). הערה מדויקת: בפיל שבהדר ה-text-white בפועל נדרס ל-#ececec ע\"י tier-styles.tsx:341 ([data-el=\"chrome-header\"] a:not([data-el])), אך זה לא משנה את הבעיה — עדיין טקסט כמעט-לבן על מותג בינוני. עבור #C9A227 יחס הניגודיות מול לבן ≈2.4:1 — נכשל גם ב-3:1. אומת ב-grep שאין בקובץ שום פונקציית luminance/onBrand/contrast.",
+    "fix": "להוסיף פונקציית WCAG relative luminance ולגזור const onBrand = luminance(brand) > 0.45 ? \"#111111\" : \"#ffffff\"; להשתמש ב-style={{backgroundColor: brand, color: onBrand}} בשלושת המקומות (801-802, 822-823, 901-902) ולהסיר משם text-white. בפיל שבהדר יש גם להוסיף כלל שמנצח את tier-styles.tsx:341 (או לסמן אותו data-el, ראה הממצא הנפרד).",
+    "severity": "high",
+    "category": "color",
+    "area": "brochure-shell"
+  },
+  {
+    "title": "שם המותג בהדר ללא truncate/min-w-0 — גולש או מוחץ את האייקונים במובייל",
+    "file": "app/s/[slug]/page.tsx",
+    "line": 807,
+    "problem": "אומת. שורה 807: <span className=\"text-lg font-bold\">{brandName}</span> בתוך <div className=\"flex items-center gap-2.5\"> (791), ללא min-w-0 וללא truncate. הקונטיינר החיצוני (790) הוא flex h-16 max-w-5xl items-center justify-between px-4. ב-flex ברירת המחדל היא min-width:auto, כך שאף אחד משני הילדים לא מתכווץ מתחת לרוחב התוכן שלו — וקבוצת האייקונים בצד השני (809-849: חשבון + מועדפים + עגלה) גם היא ללא shrink-0. שם מותג עברי ארוך שמגיע מה-AI ידחוף לגלישה אופקית או ימחץ את האייקונים במסכים צרים.",
+    "fix": "שורה 791: className=\"flex min-w-0 items-center gap-2.5\"; שורה 807: className=\"truncate text-lg font-bold\"; שורה 809: className=\"flex shrink-0 items-center gap-1\".",
+    "severity": "high",
+    "category": "responsive",
+    "area": "brochure-shell"
+  },
+  {
+    "title": "סקשן מעקב ההזמנות ללא ריווח אנכי, ועם שני ילדים בעלי מודל-קופסה סותר",
+    "file": "app/s/[slug]/page.tsx",
+    "line": 566,
+    "problem": "אומת. שורה 566: <div key=\"orderTracking\" data-el=\"module-section\" className=\"mx-auto max-w-5xl px-4\"> — ללא py כלשהו, ו-tier professional לא מוסיף padding-block ל-module-section (tier-styles.tsx:372-375), בניגוד ל-advanced שכן (tier-styles.tsx:203 padding-block: clamp(3rem,6vw,7rem)). אומת ששני הילדים בעלי מודל-קופסה שונה לחלוטין: OrderTracker הוא <section id=\"order-tracking\" className=\"bg-white px-4 py-16\"> עם <div className=\"mx-auto max-w-xl\"> פנימי (order-tracker.tsx:72-73), ואילו ReturnRequest הוא כרטיס <section className=\"rounded-2xl border bg-white p-5 shadow-sm\"> (return-request.tsx:53). ב-md:grid-cols-2 (שורה 567) עם items-stretch ברירת מחדל, הכרטיס הקטן נמתח לגובה הסקשן הענק. וכש-returns בלבד מופעל, הכרטיס נדבק ללא מרווח לסקשנים סביבו. בנוסף px-4 מוכפל (566 + order-tracker.tsx:72).",
+    "fix": "שורה 566: className=\"mx-auto max-w-5xl px-4 py-16\"; שורה 567: `grid items-start gap-6 ...`; ובמקביל להסיר px-4 py-16 מ-order-tracker.tsx:72 ולהשאיר את הריווח לקונטיינר החיצוני.",
+    "severity": "high",
+    "category": "spacing",
+    "area": "brochure-shell"
+  },
+  {
+    "title": "אין ניווט במובייל בכלל — ה-CTA הראשי נעלם מתחת ל-640px",
+    "file": "app/s/[slug]/page.tsx",
+    "line": 810,
+    "problem": "אומת. שורה 810: <nav data-el=\"chrome-nav\" className=\"hidden items-center gap-5 text-sm sm:flex\"> — מוסתר לחלוטין מתחת ל-sm, ואיתו גם פיל ה-CTA (819-827, \"קביעת תור\"/\"צרו קשר\"). קראתי את כל בלוק ההדר (789-852) — אין כפתור המבורגר, אין drawer, אין שום תחליף. הדר המובייל מכיל רק לוגו/אות + שם + אייקוני חשבון/מועדפים/עגלה. בנוסף בטווח 640-768px ה-nav מוצג עם עד 4 קישורים + פיל CTA לצד 3 אייקונים בתוך max-w-5xl px-4 — צפוף מאוד.",
+    "fix": "להוציא את פיל ה-CTA (819-827) מתוך ה-<nav> אל ה-div בשורה 809 כך שיישאר גלוי תמיד, עם whitespace-nowrap max-sm:px-3 max-sm:text-xs; ולהוסיף כפתור המבורגר sm:hidden שפותח <details>/drawer עם אותם עוגנים (#about/#services/#store/#faq). לשקול להעלות את נקודת השבירה של ה-nav ל-md:flex.",
+    "severity": "high",
+    "category": "responsive",
+    "area": "brochure-shell"
+  },
+  {
+    "title": "פיל ה-CTA בהדר לא מסומן data-el=\"btn-primary\" — הכפתור היחיד באתר שלא מקבל את סגנון ה-tier",
+    "file": "app/s/[slug]/page.tsx",
+    "line": 822,
+    "problem": "אומת. שורות 820-826: <a href={...} className=\"rounded-lg px-4 py-2 font-medium text-white\" style={{backgroundColor: brand}}> — ללא data-el. הכלל [data-tier=\"professional\"] [data-el=\"btn-primary\"] (tier-styles.tsx:422-437) מעניק לכל כפתור ראשי אחר גרדיאנט brand→gold, color:#0a0a0a, border-radius:50px, padding-inline:2rem ו-box-shadow זוהר. כאן מתקבל מלבן שטוח. גרוע מכך — היעדר ה-data-el גורם לכלל tier-styles.tsx:341 (a:not([data-el])) לצבוע את הטקסט ב-#ececec, כלומר גם הצבע לא מתוכנן.",
+    "fix": "להוסיף data-el=\"btn-primary\" לתגית ה-<a> בשורה 820 ולהסיר את המחלקות שהוא דורס ממילא: className=\"whitespace-nowrap font-medium\" (ה-tier מספק רקע, צבע, פדינג ורדיוס — אפשר להסיר גם את ה-style, או להשאירו כ-fallback).",
+    "severity": "medium",
+    "category": "consistency",
+    "area": "brochure-shell"
+  },
+  {
+    "title": "hover:opacity-70 על קישורי הניווט מתנגש עם ה-tier — הקישור מתכהה בריחוף במקום להתבהר",
+    "file": "app/s/[slug]/page.tsx",
+    "line": 811,
+    "problem": "אומת. שלושת קישורי הניווט (811, 812, 813) וקישור השאלות (818) משתמשים ב-hover:opacity-70. tier-styles.tsx:333-334 מגדיר [data-tier=\"professional\"] [data-el=\"chrome-nav\"] a { color:#ececec; transition: color .25s ease } ו-:hover { color:#ffffff }. הצבע מגיע מה-tier (unlayered מנצח), אבל opacity הוא מאפיין נפרד ולכן הווריאנט כן חל: #ffffff באטימות 0.7 מעל הדר rgba(0,0,0,.72) על גוף שחור (tier-styles.tsx:321-328) מתקבל ≈#b2b2b2 — כהה יותר מ-#ececec של מצב המנוחה. כלומר הריחוף מכהה במקום להבהיר. בנוסף ה-transition בשורה 333 הוא על color בלבד, כך שקפיצת ה-opacity חדה.",
+    "fix": "להסיר hover:opacity-70 מארבעת הקישורים (811, 812, 813, 818) ולהשאיר את ניהול מצב הריחוף ל-tier. אם רוצים אפקט נוסף — להוסיף ב-tier-styles.tsx בלבד: [data-tier=\"professional\"] [data-el=\"chrome-nav\"] a:hover { text-shadow: 0 0 12px color-mix(in srgb, var(--gold) 40%, transparent) }.",
+    "severity": "medium",
+    "category": "consistency",
+    "area": "brochure-shell"
+  },
+  {
+    "title": "scroll-behavior: smooth חומק ממתג הכיבוי של prefers-reduced-motion",
+    "file": "app/s/[slug]/page.tsx",
+    "line": 775,
+    "problem": "אומת. שורה 775 (ענף האתר) ושורה 291 (ענף ה-landing) מגדירות html { scroll-behavior: smooth; }. מתג הכיבוי היחיד הוא tier-styles.tsx:44-51: @media (prefers-reduced-motion: reduce) { [data-tier] * { ... scroll-behavior: auto !important } } — הסלקטור מכסה אך ורק צאצאים של [data-tier], ותג ה-<html> אינו צאצא של ה-div שנושא את data-tier (page.tsx:737). לכן משתמש שביקש תנועה מופחתת עדיין מקבל גלילה חלקה בכל לחיצה על עוגן (#about/#services/#store/#booking/#faq/#contact).",
+    "fix": "לעטוף את ההצהרה בשני המקומות: @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } } — בשורה 775 ובשורה 291.",
+    "severity": "medium",
+    "category": "accessibility",
+    "area": "brochure-shell"
+  },
+  {
+    "title": "קונטיינר condensed (max-w-4xl) חותך רקעי סקשנים שנועדו להיות רוחב-מלא",
+    "file": "app/s/[slug]/page.tsx",
+    "line": 726,
+    "problem": "אומת. שורות 708, 724-730: primaryKeys = [\"store\",\"booking\",\"faq\",\"contact\"], וכל מפתח אחר נעטף ב-<div key={key} className=\"mx-auto max-w-4xl\"> כשה-hint condensed פעיל — אומת ש-condensed:true קיים ב-compact (site-layout.ts:139) וב-express (180). הצמתים העטופים אינם תוכן בלבד אלא סקשנים עם רקע רוחב-מלא: rentals (rentals-section.tsx:22 <section className=\"bg-zinc-50 px-4 py-16\">) וכל מודולי ה-bg-white (testimonials/gallery/menu/pricing/blog/courses/donations/certifications/partners/before-after) — שכולם, בגלל היעדר data-el=\"module-section\", נשארים בהירים. התוצאה: פסי רקע בהירים תלושים ברוחב 896px עם קצוות אנכיים חדים באמצע עמוד שחור. בנוסף orderTracking (max-w-5xl, שורה 566) ו-reviews (site-reviews.tsx:44 max-w-5xl) מצטמצמים ל-max-w-4xl ומאבדים יישור מול store/booking/faq/contact שנשארים ברוחב מלא.",
+    "fix": "לא לעטוף את הסקשן עצמו. לאחר שהמודולים יסומנו data-el=\"module-section\" (ראה הממצא הראשון), לעטוף ב-<div key={key} data-condensed className=\"contents\"> ולהוסיף ב-tier-styles: [data-condensed] [data-el=\"module-section\"] > * { max-width: 56rem; margin-inline: auto; } — כך הרקע נשאר רוחב-מלא והתוכן מצטמצם. לחלופין להחריג את orderTracking ו-reviews מהעטיפה כדי לשמור על אחידות רוחב.",
+    "severity": "medium",
+    "category": "spacing",
+    "area": "brochure-shell"
+  },
+  {
+    "title": "רווח של 8px בלבד בין כותרת השירותים לכרטיסים כשאין intro",
+    "file": "app/s/[slug]/page.tsx",
+    "line": 474,
+    "problem": "אומת. שורה 474: <h2 data-el=\"section-title\" className=\"mb-2 text-center text-3xl font-bold\"> — 8px בלבד. כל הרווח האמיתי לפני הרשת מגיע מה-mb-10 של פסקת ה-intro (476), שמרונדרת רק כש-services.intro קיים (התנאי בשורה 475). ב-tier professional [data-el=\"section-title\"] (tier-styles.tsx:393-397) לא כולל margin-bottom, בניגוד ל-advanced שכן (tier-styles.tsx:211 margin-bottom: 2.5rem). לשם השוואה: faq משתמש ב-mb-8 (548), about ב-mb-6 (416, 445), booking ב-mb-2 עם פסקה קבועה mb-8 (525-526). כלומר בשירותים ללא intro הכרטיסים מתחילים 8px מתחת לכותרת.",
+    "fix": "להוסיף margin-bottom ל-[data-tier=\"professional\"] [data-el=\"section-title\"] ב-tier-styles.tsx:393 (למשל margin-bottom: 2rem), שיפתור זאת לכל הכותרות בבת אחת; או מקומית: h2 className=\"mb-4 text-center text-3xl font-bold md:mb-6\" ו-p className=\"mx-auto -mt-1 mb-10 max-w-xl text-center text-zinc-600\".",
+    "severity": "medium",
+    "category": "spacing",
+    "area": "brochure-shell"
+  },
+  {
+    "title": "שני סקשני שאלות ותשובות יכולים להופיע באותו עמוד",
+    "file": "app/s/[slug]/page.tsx",
+    "line": 544,
+    "problem": "אומת. faqSection (544-561) מרונדר מ-page_faq עם id=\"faq\", ובמקביל מודול \"faqs\" מרנדר <FaqsSection businessId={bid} brand={brand} /> (593) עם id=\"faqs\" (faqs-section.tsx:27) מטבלת ה-FAQ. אומת שאין תנאי הדדי: המסנן בשורות 621-622 מוציא רק \"contact\" ו-\"returns\", ולא \"faqs\". עסק עם page_faq מלא + מודול faqs מופעל יקבל שני בלוקי \"שאלות נפוצות\" בעיצוב שונה. אומת גם ש-faqJsonLd (346-359) נבנה אך ורק מ-listPublicFaqs של המודול, כך שה-structured data לא תואם לסקשן ה-faq המוצג, וקישור הניווט (818) מצביע רק על id=\"faq\".",
+    "fix": "המשתנה faqModuleActive כבר קיים בשורה 345 — לנצל אותו: const showInlineFaq = Boolean(faq?.items?.length) && !faqModuleActive; ולהתנות בו את faqSection (544) ואת קישור הניווט (818). במקביל להזין את faqJsonLd גם מ-faq.items כשהסקשן הפנימי הוא זה שמוצג.",
+    "severity": "medium",
+    "category": "consistency",
+    "area": "brochure-shell"
+  },
+  {
+    "title": "CTA מת בהירו כשאין הזמנות/חנות/טופס/וואטסאפ",
+    "file": "app/s/[slug]/page.tsx",
+    "line": 875,
+    "problem": "אומת. שרשרת ה-ternary בשורות 869-875 מסתיימת ב-(waLink ?? \"#\"). אומת שכל וריאנטי ההירו מרנדרים את ה-CTA ללא תנאי: store-hero.tsx:207, orbit-hero.tsx:131, spotlight-hero.tsx:157, vanguard-hero.tsx:156 — כולם <a href={ctaHref}> ללא בדיקת null. אתר תדמית ללא booking, ללא מוצרים (site_mode=\"website\" ⇒ sellsProducts=false, שורה 323), עם מודול contact כבוי ובלי מספר וואטסאפ — צירוף אפשרי לחלוטין — מקבל את הכפתור הגדול ביותר בעמוד עם href=\"#\". זהו גם ה-CTA היחיד שנשאר נגיש במובייל (הניווט מוסתר, שורה 810).",
+    "fix": "להפוך את ctaHref ל-string | null ולהוסיף רינדור מותנה בכל וריאנטי ההירו (store-hero.tsx:207, orbit-hero.tsx:131, spotlight-hero.tsx:157, vanguard-hero.tsx:156); לפני הוויתור לגזור fallback שימושי — `tel:${site.business.phone}` כשקיים, ורק אחרת להעביר null.",
+    "severity": "medium",
+    "category": "polish",
+    "area": "brochure-shell"
+  },
+  {
+    "title": "אי-אחידות פיקסלים בהדר ובריווח האנכי בין סקשנים",
+    "file": "app/s/[slug]/page.tsx",
+    "line": 796,
+    "problem": "אומת שני פערים: (1) הלוגו הוא size-10 (40px, שורה 797) בעוד תג האות החלופי הוא size-9 (36px, שורה 801) — כלומר גובה בלוק המותג משתנה ב-4px בין אתר עם לוגו לאתר בלעדיו; (2) benefitsSection משתמש ב-py-14 (שורה 390) בזמן שכל שאר הסקשנים בקובץ משתמשים ב-py-16 — אומת ב-grep: 411, 471, 523, 545, 654 כולם py-16, ו-390 הוא היחיד עם py-14. זו קפיצה של 8px בריתמוס האנכי בדיוק בסקשן הראשון אחרי ההירו.",
+    "fix": "לאחד ל-size-10 בשני המצבים (797 ו-801) ולהגדיל את גופן האות ל-text-lg; ולהחליף py-14 ב-py-16 בשורה 390. לשליטה מרכזית עדיפה — להוסיף ב-tier-styles.tsx:372: padding-block: clamp(3.5rem, 6vw, 7rem) לכלל [data-tier=\"professional\"] [data-el=\"module-section\"] ולהסיר את py-* מהסקשנים (זה גם פותר את ממצא ריווח מעקב-ההזמנות).",
+    "severity": "low",
+    "category": "polish",
+    "area": "brochure-shell"
+  },
+  {
+    "title": "שדות הטופס נבלעים בכרטיס בדרג המקצועי (אותו צבע רקע בדיוק)",
+    "file": "components/public/site-lead-form.tsx",
+    "line": 62,
+    "problem": "אומת בקוד. inputCls (שורה 62) = `border border-zinc-200 bg-white`, והכרטיס (שורה 68) = `border bg-white`. בדרג professional tier-styles.tsx:378-381 ממפה `.bg-white` בתוך [data-el=\"module-section\"] ל-#121214 — והטופס אכן יושב שם: app/s/[slug]/page.tsx:651-653 עוטף את סקשן צור-קשר ב-data-el=\"module-section\", והשורש בשורה 738 נושא data-tier. לכן הכרטיס והשדות מקבלים בדיוק את אותו מילוי. במקביל tier-styles.tsx:388 כופה `.border { border-color: rgba(255,255,255,.1) !important }`, כך שגם המסגרת כמעט בלתי נראית. lib/design-tier.ts:45-52 מחזיר תמיד professional, כך שזה המצב בכל אתר במצב website/store. (הערה מתקנת: במצב landing אין data-tier כלל — components/public/landing-page.tsx לא מרנדר TierStyles — ולכן שם השדות נשארים לבנים ותקינים.)",
+    "fix": "ב-inputCls להחליף `bg-white` במילוי שקוף-יחסי שהרימאפ לא נוגע בו: `bg-black/[0.04]` (בהיר: באר אפורה עדינה; כהה: כהה מ-#121214). תיקון ל-fix המקורי: אין טעם לשנות ל-`border-zinc-300` — כל עוד המחלקה `border` קיימת, tier-styles.tsx:388 דורס את צבע המסגרת ב-!important; ההפרדה חייבת לבוא מהרקע. תוצאה: `\"w-full rounded-lg border border-zinc-200 bg-black/[0.04] px-3 py-2.5 ...\"`.",
+    "severity": "critical",
+    "category": "color",
+    "area": "brochure-footer"
+  },
+  {
+    "title": "הטקסט שמוקלד בשדה הניוזלטר בפוטר כמעט בלתי נראה (יחס ~1.98:1)",
+    "file": "components/public/site-footer.tsx",
+    "line": 137,
+    "problem": "אומת. tier-styles.tsx:439-443 נותן ל-[data-el=\"chrome-footer\"] את `color: #b8b8b8`, ו-tier-styles.tsx:448-449 ממפה גם `.text-zinc-500` שבשורה 49 לאותו #b8b8b8. node_modules/tailwindcss/preflight.css:248 נותן ל-input/textarea/select את `color: inherit`. שדה הניוזלטר (newsletter-signup.tsx:53) הוא `bg-white` ואינו בתוך [data-el=\"module-section\"] (הפוטר הוא chrome-footer), ולכן הרימאפ שהופך bg-white לכהה לא חל עליו. #b8b8b8 על לבן = 1.98:1 מחושב. המשתמש מקליד מייל ולא רואה מה כתב. הרכיב נטען כש-hasProducts=true (app/s/[slug]/page.tsx:916), כלומר בכל אתר חנות.",
+    "fix": "בשדה עצמו (newsletter-signup.tsx:53) להוסיף `text-black placeholder:text-zinc-500` — אומת ששתי המחלקות האלה אינן ברשימות הרימאפ של הפוטר (tier-styles.tsx:446-449 מכסה רק text-zinc-500/600/800/900 כמחלקה בסיסית), והמחלקה על האלמנט עצמו גוברת על צבע בירושה.",
+    "severity": "critical",
+    "category": "accessibility",
+    "area": "brochure-footer"
+  },
+  {
+    "title": "הודעת השגיאה בטופס נופלת מתחת ל-AA על הרקע הכהה, ולא מוכרזת",
+    "file": "components/public/site-lead-form.tsx",
+    "line": 115,
+    "problem": "אומת. שורה 115: `{error && <p className=\"text-sm text-red-600\">{error}</p>}`. `.text-red-600` (#dc2626) אינו ברשימת הרימאפ של הדרג (tier-styles.tsx:382-387 מכסה zinc בלבד), ולכן נשאר כהה על כרטיס #121214 — יחס מחושב 3.87:1, מתחת ל-4.5:1. בנוסף אין role=\"alert\"/aria-live, כך שקורא מסך לא מודיע על כישלון השליחה.",
+    "fix": "להפוך את השגיאה ל-chip בהיר ששורד בשני הרקעים ולהכריז עליה: `<p role=\"alert\" className=\"rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700\">` (bg-red-50 אינו ברימאפ; red-700 עליו נותן ~5.9:1). כדאי להחיל את אותו טיפול גם על newsletter-signup.tsx:70 שסובל מאותו text-red-600.",
+    "severity": "high",
+    "category": "accessibility",
+    "area": "brochure-footer"
+  },
+  {
+    "title": "במצב landing עמודת הניוזלטר בפוטר מציגה משפט מת בלי שום קריאה לפעולה",
+    "file": "components/public/site-footer.tsx",
+    "line": 146,
+    "problem": "אומת. landing-page.tsx:437-442 מעביר hasProducts={false}, hasAbout={false}, hasFaq={false}, contactEnabled={false}, hasHelpPage={false}. בפועל: עמודת \"עזרה\" (52-89) מצטמצמת לקישור בודד — \"תקנון האתר\"; עמודת \"ניוזלטר\" (134-148) נופלת לענף השלישי, כותרת \"ניוזלטר\" מעל \"רוצים לשמוע עלינו ראשונים? עקבו אחרינו.\" — בלי טופס ובלי קישור. העוגן #lead-form קיים בעמוד (landing-page.tsx:373) ואף פעם לא מקושר מהפוטר. תיקון לניסוח המקורי: העמודה האמצעית אינה ריקה — היא מכילה תיאור, מיקום, וואטסאפ ורשתות; הבעיה היא עמודת הניוזלטר המתה ועמודת העזרה המצטמצמת.",
+    "fix": "בענף השלישי (שורה 146) לקשר לטופס במקום למשפט המת: `<a href={`/s/${slug}#lead-form`} className=\"font-medium hover:underline\" style={{ color: brand }}>השאירו פרטים</a>` (נתיב מלא, כי אותו פוטר מרונדר גם מ-terms/accessibility). כדאי גם להתאים את הכותרת ל\"נשארים בקשר\" בענף הזה, כי \"ניוזלטר\" בלי טופס מטעה.",
+    "severity": "medium",
+    "category": "consistency",
+    "area": "brochure-footer"
+  },
+  {
+    "title": "אין תוויות בטופס — placeholder בלבד, וסימון החובה נעלם בהקלדה",
+    "file": "components/public/site-lead-form.tsx",
+    "line": 82,
+    "problem": "אומת: ארבעת השדות (81-88, 89-95, 97-103, 106-112) מוגדרים בלי <label>, בלי aria-label ובלי name. הכוכבית של שדה החובה קיימת רק כטקסט בתוך ה-placeholder (שורה 83: \"שם מלא *\") ונמחקת ברגע שמתחילים להקליד. כשל נגישות (ת\"י 5568 / WCAG 3.3.2), וגם הסיבה שהדפדפן לא מזהה את השדות למילוי אוטומטי.",
+    "fix": "לכל שדה תווית מוסתרת ויזואלית + קישור: `<label htmlFor=\"lf-name\" className=\"sr-only\">שם מלא (חובה)</label>` ו-`id=\"lf-name\" name=\"name\"` בשדה (וכן lf-phone/lf-email/lf-message), ולהעביר את סימון החובה מה-placeholder לתווית.",
+    "severity": "high",
+    "category": "accessibility",
+    "area": "brochure-footer"
+  },
+  {
+    "title": "עיגולי הרשתות החברתיות נשארים לבנים בוהקים על פוטר שחור",
+    "file": "components/public/site-footer.tsx",
+    "line": 120,
+    "problem": "אומת. שורה 120: `className=\"flex size-9 items-center justify-center rounded-full border border-zinc-200 bg-white shadow-sm transition-transform hover:scale-110\"`. הרימאפ שהופך bg-white לכהה מוגבל ל-[data-el=\"module-section\"] (tier-styles.tsx:378), והפוטר הוא [data-el=\"chrome-footer\"] עם רקע #000000 (tier-styles.tsx:439-440). לכן מתקבלים כפתורי-גלולה לבנים מלאים — האלמנט הצועק ביותר בפוטר, מול #b8b8b8 על שחור בכל השאר. בנוסף size-9 = 36px, מתחת למינימום 44px למגע, עם gap-2 בלבד.",
+    "fix": "מילוי ניטרלי ששורד גם על פוטר שחור וגם על bg-zinc-50 של מצב landing, ומטרת מגע תקנית: `className=\"flex size-11 items-center justify-center rounded-full border border-zinc-300/60 bg-white/5 backdrop-blur-sm transition-transform hover:scale-110\"`. יש לוודא ויזואלית גם במצב landing (רקע בהיר), שם bg-white/5 כמעט שקוף והמסגרת + צבע ה-SVG הם מה שמגדיר את הכפתור.",
+    "severity": "medium",
+    "category": "color",
+    "area": "brochure-footer"
+  },
+  {
+    "title": "כפתור השליחה חסר data-el=\"btn-primary\" — נראה אחרת מכל CTA אחר באתר",
+    "file": "components/public/site-lead-form.tsx",
+    "line": 116,
+    "problem": "אומת. tier-styles.tsx:422-437 מעצב כל [data-el=\"btn-primary\"] בדרג המקצועי כגלולה עם גרדיאנט מותג/זהב, border-radius 50px, ריווח וצללית. הכפתור בשורות 116-124 לא נושא את ה-hook ולכן נשאר מלבן rounded-lg שטוח, בזמן ש-components/public/add-to-cart-button.tsx:163 כן מקבל את הטיפול. ה-CTA היחיד בסקשן צור-קשר הוא היחיד שנראה זר.",
+    "fix": "להוסיף `data-el=\"btn-primary\"` לתגית הכפתור בשורה 116. הסגנון האינליין `backgroundColor: brandColor` (שורה 120) והמחלקה text-white יידרסו ע\"י ה-!important של הדרג (background + color: #0a0a0a) — וזו התוצאה הרצויה. במצב landing אין data-tier ולכן אין שינוי.",
+    "severity": "medium",
+    "category": "consistency",
+    "area": "brochure-footer"
+  },
+  {
+    "title": "טבעת הפוקוס בשדות אינה בצבע המותג",
+    "file": "components/public/site-lead-form.tsx",
+    "line": 62,
+    "problem": "אומת מקצה לקצה. שורה 62 מכילה `focus:ring-2` בלי מחלקת ring-color. ב-tailwindcss 4.3.0 (אומת בקוד המקומפל: `e.get([\"--default-ring-color\"]) ?? \"currentcolor\"`) ברירת המחדל היא currentcolor, ו-app/globals.css (129 שורות, נקרא במלואו) לא מגדיר --default-ring-color. הכלל `outline: 2px solid var(--brand)` (tier-styles.tsx:34-38) חל רק ב-focus-visible ורק בתוך [data-tier], ובמצב landing אין data-tier כלל (landing-page.tsx לא מרנדר TierStyles). אותה בעיה בדיוק ב-newsletter-signup.tsx:53.",
+    "fix": "להזרים את צבע המותג לטבעת דרך משתנה יורש על ה-<form> בשורה 65: `style={{ \"--tw-ring-color\": brandColor } as React.CSSProperties}` (משתני CSS יורשים, כך שכל השדות מקבלים). כנ\"ל ב-newsletter-signup.tsx:35.",
+    "severity": "medium",
+    "category": "color",
+    "area": "brochure-footer"
+  },
+  {
+    "title": "גופן 14px בשדות גורם לזום אוטומטי ב-Safari מובייל",
+    "file": "components/public/site-lead-form.tsx",
+    "line": 62,
+    "problem": "אומת: inputCls כולל `text-sm` = 14px. iOS Safari מזים את העמוד בפוקוס על שדה עם font-size < 16px, והמשתמש נשאר עם עמוד מוגדל אחרי סגירת המקלדת. זה טופס הלידים היחיד בשני מצבי האתר. כמו כן ה-textarea (שורות 106-112) יורש את אותו inputCls בלי resize מוגבל, וניתן לגרירה אל מחוץ לכרטיס.",
+    "fix": "`text-base sm:text-sm` ב-inputCls (16px במובייל, 14px מ-sm ומעלה), ולהוסיף `resize-y` ל-className של ה-textarea בשורה 107. כדאי אותו טיפול גם ב-newsletter-signup.tsx:53.",
+    "severity": "medium",
+    "category": "responsive",
+    "area": "brochure-footer"
+  },
+  {
+    "title": "שדות טלפון ומייל בלי dir ובלי autoComplete",
+    "file": "components/public/site-lead-form.tsx",
+    "line": 90,
+    "problem": "אומת: שדה הטלפון (89-95) ושדה המייל (97-103) לא מקבלים dir ולא autoComplete, ויורשים כיוון RTL מההקשר. מספר עם + או סוגריים (\"+972 (50)\") וכתובת מייל עוברים סידור דו-כיווני ומוצגים בסדר שגוי. חוסר עקביות מוכח באותו אתר: שדה הניוזלטר המקביל כן מקבל `dir=\"ltr\"` (newsletter-signup.tsx:56). בנוסף אין autoComplete באף אחד מארבעת השדות, כך שאין מילוי אוטומטי (מחמיר את ממצא היעדר ה-name/label).",
+    "fix": "להוסיף `dir=\"auto\"` לשדות הטלפון (89) והמייל (97) — ה-placeholder העברי נשאר RTL והתוכן שנקלד עובר ל-LTR — ולהוסיף `autoComplete=\"name\"` (81), `\"tel\"` (89), `\"email\"` (97).",
+    "severity": "medium",
+    "category": "rtl",
+    "area": "brochure-footer"
+  },
+  {
+    "title": "תיאור העסק בפוטר נחתך באמצע מילה, בלי שלוש נקודות",
+    "file": "components/public/site-footer.tsx",
+    "line": 46,
+    "problem": "אומת. שורה 46: `const shortDesc = description ? description.slice(0, 120).trim() : null;` — חיתוך בתו ה-120 בדיוק, בעברית כמעט תמיד באמצע מילה, ובלי אליפסיס. השורה 94 מרנדרת `{shortDesc}` בלי שום סימן שהטקסט נקטע.",
+    "fix": "למחוק את שורה 46 ולתת ל-CSS לחתוך נקי: שורה 94 → `{description && <p className=\"line-clamp-3 leading-relaxed\">{description}</p>}` (line-clamp הוא ליבה ב-Tailwind v4 — חיתוך לפי שורות עם אליפסיס אמיתי, מכבד גם מסכים צרים).",
+    "severity": "medium",
+    "category": "polish",
+    "area": "brochure-footer"
+  },
+  {
+    "title": "עמודת הניוזלטר מיושרת למרכז בזמן ששתי האחרות מיושרות להתחלה",
+    "file": "components/public/site-footer.tsx",
+    "line": 135,
+    "problem": "אומת. הכותרת \"ניוזלטר\" (135) מיושרת start כמו הכותרות בשורות 53 ו-93, אבל הרכיב שמתחתיה ממרכז את עצמו: newsletter-signup.tsx:35 `mx-auto flex w-full max-w-md` ושורה 36 `justify-center`, וגם מצב ההצלחה בשורה 27 `justify-center`. התוצאה בדסקטופ: כותרת צמודה לימין מעל תוכן ממורכז, בדיוק בעמודה שבה נמצאת האינטראקציה היחידה בפוטר. הענפים הטקסטואליים (139, 146) כן מיושרים start — כלומר הפוטר לא עקבי גם מול עצמו.",
+    "fix": "עדיף על פני עטיפה ב-arbitrary variants: להוסיף ל-NewsletterSignup פרופ `align?: \"center\" | \"start\"` (ברירת מחדל center, כדי לא לשנות שימושים אחרים) שיבטל את mx-auto/max-w-md בשורה 35 ואת justify-center בשורות 27 ו-36, ולהעביר `align=\"start\"` מהפוטר בשורה 137. פתרון העטיפה שהוצע לא מכסה את מצב ההצלחה (שורה 27 אינו בתוך <form>).",
+    "severity": "medium",
+    "category": "alignment",
+    "area": "brochure-footer"
+  },
+  {
+    "title": "הכרטיס משנה ריווח וגובה בין מצב הטופס למצב ההצלחה",
+    "file": "components/public/site-lead-form.tsx",
+    "line": 53,
+    "problem": "אומת. כרטיס ההצלחה (53) הוא `p-8` בעוד הטופס (68) הוא `p-6`, והתוכן יורד מ-2-4 שדות + Turnstile + כפתור לשתי שורות טקסט. אחרי שליחה הכרטיס קורס לגובה קטן בהרבה ובריווח פנימי אחר, וכל מה שמתחתיו (מיקום, MapLinks, הערת פרטיות) קופץ למעלה. אין role=\"status\"/aria-live, ולכן המעבר לא מוכרז לקורא מסך ואין החזרת פוקוס.",
+    "fix": "ליישר את הריווח ל-`p-6` ולהוסיף הכרזה: `<div role=\"status\" className=\"flex flex-col items-center justify-center gap-3 rounded-2xl border bg-white p-6 text-center shadow-sm\">`. תיקון ל-fix המקורי: לא להמציא `min-h-[19rem]` — גובה הטופס משתנה לפי מספר השדות ש-fields מפעיל (wantsEmail/wantsMessage, שורות 28-29), ולכן מספר קבוע יהיה שגוי ברוב המקרים; אם רוצים למנוע קפיצה, יש למדוד את הטופס (למשל לשמור את גובהו ב-ref לפני ההחלפה) או להסתפק ביישור הריווח.",
+    "severity": "low",
+    "category": "spacing",
+    "area": "brochure-footer"
+  },
+  {
+    "title": "אנימציית ה-hover של הרשתות לא מכבדת prefers-reduced-motion במצב landing",
+    "file": "components/public/site-footer.tsx",
+    "line": 120,
+    "problem": "אומת. שורה 120 כוללת `transition-transform hover:scale-110`. מתג-הכיבוי הגלובלי ל-prefers-reduced-motion חי ב-tier-styles.tsx:44-51 והוא scoped ל-[data-tier]; grep על components/public/landing-page.tsx מחזיר אפס התאמות ל-data-tier ול-TierStyles, ו-app/globals.css (129 שורות) לא מכיל שום כלל prefers-reduced-motion. לכן במצב landing האנימציה רצה בלי הגנה.",
+    "fix": "להגן ברמת הרכיב, בלי תלות בדרג: `motion-safe:transition-transform motion-safe:hover:scale-110` (Tailwind פולט @media (prefers-reduced-motion: no-preference)). כדאי לשקול גם כלל גלובלי אחד ב-app/globals.css שיכסה את כל מצב landing.",
+    "severity": "low",
+    "category": "accessibility",
+    "area": "brochure-footer"
+  },
+  {
+    "title": "ה-h1 של Orbit נדרס ע\"י ה-tier ל-clamp עד 6.5rem ושובר את פריסת שתי העמודות",
+    "file": "components/public/heroes/orbit-hero.tsx",
+    "line": 120,
+    "problem": "אומת בקוד. השורה: `<h1 className=\"min-h-[2.2em] text-balance text-3xl font-bold leading-tight text-white sm:text-5xl\">`. מנגד tier-styles.tsx:351-362 קובע `[data-tier=\"professional\"] [data-el=\"hero\"] h1 { font-weight:200; line-height:1.05; font-size: clamp(2.75rem, 2rem + 4vw, 6.5rem); ... color:transparent !important }`. אומת גם ש-lib/design-tier.ts:51 מחזיר תמיד \"professional\", ש-store-hero.tsx:166 עוטף כל hero ב-`data-el=\"hero\"`, ושה-CSS של ה-tier נפלט מ-`<style>` ללא cascade layer (tier-styles.tsx:25) — ולכן הוא מנצח את utilities של Tailwind v4 ששוכנות ב-@layer, בלי קשר לספציפיות. התוצאה: `text-3xl/sm:text-5xl`, `font-bold` ו-`leading-tight` הם קוד מת. ב-1280px הכותרת נרנדרת ב-83.2px (2rem + 4vw) בתוך עמודה של ~556px בלבד (max-w-6xl=1152 פחות gap-10, חלקי 2) — כותרת עברית של 4-5 מילים נשברת ל-5-6 שורות ומתנפחת מעל 400px, מגמדת את גרפיקת ה-orbit שלצידה והפריסה הדו-עמודתית קורסת.",
+    "fix": "לקבע גודל שמתאים לעמודה חצי-רוחב עם `!` (חובה — important מנצח הצהרה רגילה גם כשהיא unlayered): `className=\"min-h-[2.2em] text-balance leading-[1.12]! font-bold! text-[clamp(1.75rem,1.1rem+2.2vw,3.25rem)]!\"`. שים לב: אין טעם להוסיף `text-white` — ה-tier קובע `color:transparent !important` + `-webkit-text-fill-color:transparent` על ה-h1, כך שהכותרת ממילא נצבעת בגרדיאנט הזהב; אם רוצים לבן מלא צריך `[-webkit-text-fill-color:currentColor] text-white!`. חלופה נקייה יותר: להוסיף ב-tier-styles.tsx חריגה `[data-tier=\"professional\"] [data-el=\"hero\"] h1.hero-split { font-size: revert-layer; font-weight: revert-layer; }` ולתת ל-h1 את הקלאס.",
+    "severity": "critical",
+    "category": "typography",
+    "area": "hero-orbit-spotlight"
+  },
+  {
+    "title": "ה-h1 של Orbit ריק לחלוטין ב-HTML שמגיע מהשרת",
+    "file": "components/public/heroes/orbit-hero.tsx",
+    "line": 121,
+    "problem": "אומת: שורה 121 היא `<span ref={typeRef} />` — ריק. הטקסט מוזרק אך ורק ב-useEffect (שורה 43 במסלול reduced-motion, שורה 49 בטייפרייטר). כלומר ב-SSR וב-HTML הראשוני ה-H1 היחיד של האתר מכיל רק את סמן ה-`|` — פגיעה ישירה ב-SEO ובכל בוט שיתוף (וואטסאפ/פייסבוק/גוגל) ובקורא מסך לפני hydration, בכל אתר לקוח שבחר Orbit. בנוסף `min-h-[2.2em]` שומר מקום ל-2 שורות בלבד, כך שכותרת שנשברת ל-3 שורות במובייל דוחפת את התת-כותרת וה-CTA כלפי מטה תוך כדי ההקלדה (CLS).",
+    "fix": "לא לרנדר ואז לנקות ב-useEffect (זה גורם להבזק של פריים אחד עם הטקסט המלא). עדיף לפצל ל-שתי שכבות באותה משבצת גריד: `<h1 className=\"grid ...\"><span className=\"col-start-1 row-start-1 invisible\">{fullHeadline}</span><span ref={typeRef} className=\"col-start-1 row-start-1\" /></h1>` — השכבה הבלתי-נראית מספקת את הטקסט לשרת/לקורא מסך *וגם* מקבעת את הגובה הסופי מראש, ומאפשרת להסיר את `min-h-[2.2em]` ולאפס את ה-CLS. ה-span המונפש יקבל `aria-hidden=\"true\"` כדי שהטקסט לא יוקרא פעמיים.",
+    "severity": "high",
+    "category": "accessibility",
+    "area": "hero-orbit-spotlight"
+  },
+  {
+    "title": "Orbit במובייל: scale לא מקטין את הפריסה — ~140px חלל מת, וגרפיקה דקורטיבית מעל הכותרת",
+    "file": "components/public/heroes/orbit-hero.tsx",
+    "line": 142,
+    "problem": "אומת: שורה 142 — `className=\"relative size-[400px] scale-[.65] sm:scale-[.8] md:scale-100\"`. transform אינו משפיע על זרימת הפריסה, ולכן במובייל האלמנט מצויר בגודל 260px אך תופס 400px גובה — כ-140px חלל ריק לחלוטין סביבו. במקביל אומת ששורה 118 נותנת `order-2 ... md:order-1` לעמודת הטקסט ושורה 141 נותנת `order-1 ... md:order-2` לגרפיקה, כך שבמובייל הדבר הראשון שהמבקר רואה הוא 400px של טבעות דקורטיביות; עם `py-20` (שורה 83) ה-H1 וה-CTA נדחפים אל מתחת לקיפול במסך 667px.",
+    "fix": "להקטין את הקופסה עצמה במקום scale, ולהעביר את הטקסט ראשון במובייל. על ה-div שבשורה 142: `size-[260px] sm:size-[320px] md:size-[400px]` והסרת מחלקות ה-scale; להמיר את RING_SIZES ליחסים (`width/height: ${(size/400)*100}%` במקום px, ו-top/left `calc(50% - ${(size/400)*50}%)`), ואת `radius` (שורה 79) לחישוב באחוזים — `left: calc(50% + ${cos*37.5}%)` — אחרת הנקודות והטבעות יתפזרו במידות קבועות בתוך קופסה קטנה. בנוסף: שורה 118 → `order-1 md:order-1`, שורה 141 → `order-2 md:order-2`.",
+    "severity": "high",
+    "category": "responsive",
+    "area": "hero-orbit-spotlight"
+  },
+  {
+    "title": "socialProof מוצג פעמיים באותו מסך ומתנגש עם מונה מספרים מומצא",
+    "file": "components/public/heroes/orbit-hero.tsx",
+    "line": 165,
+    "problem": "אומת: שורה 138 מרנדרת `{socialProof && <p className=\"mt-5 text-xs text-white/50\">{socialProof}</p>}`, ושורה 165 מרנדרת את אותו ערך שוב כתווית המונה: `{socialProof || \"לקוחות מרוצים\"}` — כפילות גלויה באותו מסך. חמור מכך, שורה 36: `const target = 500 + hashSeed(seed || brandName) % 4500` — מספר מומצא לגמרי מ-hash. לקוח שכתב socialProof אמיתי (\"מעל 200 לקוחות\") יקבל מעליו \"+3,247\" מומצא — שני מספרים סותרים זה מעל זה. בנוסף `max-w-[8em]` על `text-[11px]` = כ-88px רוחב, כך שמשפט אמיתי נשבר ל-4-5 שורות זעירות בתוך הטבעות.",
+    "fix": "לנתק את השניים: להשאיר את `socialProof` רק בשורה 138, ולקבע בשורה 165 תווית גנרית — `<span className=\"mt-1 max-w-[9rem] text-[11px] leading-snug text-white/50\">לקוחות מרוצים</span>`. אם המספר המומצא לא מקובל שיווקית — להסתיר את בלוק המונה כולו (שורות 161-166) עד שיהיה נתון אמיתי; אין כרגע ב-HeroProps (store-hero.tsx:25-47) שום שדה סטטיסטיקה אמיתי לשאוב ממנו, כך שכל תנאי חייב להתבסס על prop חדש שיתווסף.",
+    "severity": "high",
+    "category": "consistency",
+    "area": "hero-orbit-spotlight"
+  },
+  {
+    "title": "Spotlight: התנגשות RTL — items-end (לוגי) מול text-right (פיזי) בעמודת ה-CTA",
+    "file": "components/public/heroes/spotlight-hero.tsx",
+    "line": 154,
+    "problem": "אומת: `<div className=\"flex flex-col items-start gap-3 sm:items-end sm:text-right\">`, ואומת ש-app/layout.tsx:32 קובע `dir=\"rtl\"`. ב-flex-col הציר המשני הוא האופקי, ו-cross-end תחת RTL הוא שמאל — כך ש-`items-end` דוחף את הבלוק שמאלה, בעוד `text-right` (מאפיין פיזי) מיישר את הטקסט שבתוכו ימינה. הסלוגן (`max-w-xs`, שורה 155) ו-socialProof (שורה 163) מקבלים קצה שמאלי משונן דווקא בצד שפונה לשולי הדף. גם `items-start` במובייל הוא לוגי (=ימין), כך שיישור הטקסט מתהפך לגמרי בין מובייל לדסקטופ.",
+    "fix": "להחליף למאפיין לוגי תואם: `className=\"flex flex-col items-start gap-3 sm:items-end sm:text-end\"` — `text-end` תחת RTL מיישר שמאלה, בדיוק כמו `items-end`.",
+    "severity": "high",
+    "category": "rtl",
+    "area": "hero-orbit-spotlight"
+  },
+  {
+    "title": "Spotlight מטיל איטליק מזויף על כותרת בעברית — Playfair Display חסר גליפים עבריים",
+    "file": "components/public/heroes/spotlight-hero.tsx",
+    "line": 76,
+    "problem": "אומת: שורה 76 — `.spot-serif { font-family: 'Playfair Display', 'David Libre', serif; font-style: italic; }`, ושורות 69-72 טוענות `family=Playfair+Display:ital@1&family=David+Libre:wght@500`. ל-Playfair Display אין כיסוי עברי, ולכן כל כותרת עברית נופלת ל-David Libre — שנטען ב-wght@500 בלבד וללא פנים איטליות כלל. הדפדפן מסנתז הטיה (faux oblique) על אותיות עבריות: לעברית אין איטליק, והתוצאה נקראת כבאג רינדור. בנוסף ה-<link> יושב בתוך גוף הקומפוננטה ולא ב-head דרך next/font, כך ששורה 1 של הכותרת מרנדרת בפונט מערכת וקופצת אחרי הטעינה (FOUT) — בדיוק על הכותרת הראשית, בזמן שאנימציית spot-reveal רצה.",
+    "fix": "להסיר את `font-style: italic` ולהעביר את הניגוד למשקל+משפחה: `.spot-serif { font-family: 'David Libre', 'Playfair Display', serif; font-weight: 500; letter-spacing: -.01em; }` — הניגוד מול שורה 2 (`font-bold`, שורה 142) יגיע מסריף-מול-סאנס וממשקל. את טעינת הפונט להעביר ל-next/font ב-app/layout (משתנה CSS) ולהסיר את ה-<link> משורות 69-72.",
+    "severity": "high",
+    "category": "typography",
+    "area": "hero-orbit-spotlight"
+  },
+  {
+    "title": "רעיון הטיפוגרפיה של Spotlight מתמוטט — ה-tier צובע את שתי השורות בגרדיאנט זהה",
+    "file": "components/public/heroes/spotlight-hero.tsx",
+    "line": 135,
+    "problem": "אומת: האפקט בנוי על ניגוד בין שורה 1 (`spot-serif`, שורה 137) לשורה 2 (`font-bold`, שורה 142). אבל tier-styles.tsx:351-361 מחיל על ה-h1 `background: linear-gradient(120deg,#fff,var(--gold),#8a8a8a); background-clip:text; -webkit-background-clip:text; color:transparent !important; -webkit-text-fill-color:transparent`. `-webkit-text-fill-color` ו-`color` הם מאפיינים יורשים, ושני ה-span-ים הם צאצאים ישירים של אותו h1 — כך ששניהם שקופים ומציגים את אותו גרדיאנט זהב יחיד. הניגוד הצבעוני נמחק. בנוסף `font-weight:200` של ה-tier חל על שורה 1 (לשורה 137 אין מחלקת משקל), ורק שורה 2 ניצלת בזכות `font-bold`.",
+    "fix": "לקבע צבע מפורש ברמת ה-span — הצהרה ישירה על האלמנט מנצחת ערך שהגיע בירושה: שורה 137 → `className=\"spot-reveal spot-serif block text-white/90 [-webkit-text-fill-color:currentColor]\"`; שורה 142 → `className=\"spot-reveal block font-bold text-white [-webkit-text-fill-color:currentColor]\"`. אם רוצים לשמר את גרדיאנט הזהב — להשאיר אותו רק על שורה אחת (למשל שורה 2) ולתת לשורה 1 לבן מלא, כדי שהניגוד יחזור.",
+    "severity": "high",
+    "category": "color",
+    "area": "hero-orbit-spotlight"
+  },
+  {
+    "title": "המונה של Orbit ללא dir=\"ltr\" — הפלוס קופץ לצד הלא נכון",
+    "file": "components/public/heroes/orbit-hero.tsx",
+    "line": 162,
+    "problem": "אומת: שורות 62/71 כותבות `+${...toLocaleString(\"he-IL\")}` ל-`countRef`, וה-span בשורה 162 (`<span ref={countRef} className=\"text-3xl font-extrabold text-white\">`) יושב בהקשר RTL ללא `dir`. U+002B (PLUS SIGN) מסווג ב-BiDi כ-ES; כלל W4 הופך ES ל-EN רק כשהוא *בין* שני מספרים — כאן הוא בתחילת המחרוזת, ולכן W6 מוריד אותו ל-ON, ו-N1 (שבו EN משפיע כמו R) קובע לו כיוון RTL. התוצאה: הפלוס מוצג מימין למספר — המבקר רואה \"3,247+\" במקום \"+3,247\". אותו דבר תקף לערך ההתחלתי \"+0\" בשורה 163.",
+    "fix": "`<span ref={countRef} dir=\"ltr\" className=\"text-3xl font-extrabold tabular-nums text-white\">` — `dir=\"ltr\"` מקבע את סדר התווים, ו-`tabular-nums` מונע ריצוד ברוחב במהלך ה-count-up.",
+    "severity": "medium",
+    "category": "rtl",
+    "area": "hero-orbit-spotlight"
+  },
+  {
+    "title": "נקודות ה-orbit חוזרות על אותה אות 3 פעמים — נראה כמו תקלה",
+    "file": "components/public/heroes/orbit-hero.tsx",
+    "line": 17,
+    "problem": "אומת: שורה 17 — `for (let i = 0; i < 6; i++) out.push((chars[i % chars.length] || \"•\").toUpperCase())`. הפונקציה מחזירה תמיד בדיוק 6 תווים, כך שלשם מותג של שתי מילים (\"מאפיית לחם\") מתקבל מ,ל,מ,ל,מ,ל — שש נקודות זוהרות סביב הטבעות שמציגות שתי אותיות חוזרות שלוש פעמים. זהו האלמנט הוויזואלי החתימתי של הסגנון והחזרתיות נקראת כבאג. `.toUpperCase()` הוא no-op על עברית. בנוסף אומת ששורות 178-193 מרנדרות את התווים ללא `aria-hidden`, כך שקורא מסך מקריא ג'יבריש (\"מ ל מ ל מ ל\"), והערת הקוד בשורה 168 מכנה אותן \"avatar dots\" למרות שאלה ראשי התיבות של העסק.",
+    "fix": "להחזיר רק תווים ייחודיים ולתת לפיזור להסתגל: `const uniq = Array.from(new Set(chars)); while (uniq.length < 3) uniq.push(\"•\"); return uniq.slice(0, 6);` — החישוב `(360 / initials.length) * i` בשורה 170 כבר מסתגל אוטומטית לכמות בפועל. להסיר את `.toUpperCase()`, ולהוסיף `aria-hidden=\"true\"` על ה-div העוטף בשורה 180 (או על מיכל הגרפיקה בשורה 142).",
+    "severity": "medium",
+    "category": "polish",
+    "area": "hero-orbit-spotlight"
+  },
+  {
+    "title": "ה-scrim של Spotlight לא מונוטוני — אזור בהיר באמצע התמונה",
+    "file": "components/public/heroes/spotlight-hero.tsx",
+    "line": 130,
+    "problem": "אומת: `<div className=\"absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-black/40\" />`. ב-`to-t` נקודת ה-from היא התחתית, כך שהעכירות היא 70% למטה, 10% באמצע ו-40% למעלה — כלומר האמצע בהיר משני הקצוות. זה גרדיאנט לא-מונוטוני שיוצר רצועת ביניים בהירה לרוחב ה-hero, ומעל תמונה כהה היא נקראת כארטיפקט. בנוסף השכבה יושבת מעל שכבת ה-reveal של הזרקור (שורות 99-111 / 119-126) ומעמעמת בדיוק את הצבע הרווי שהאפקט אמור לחשוף, בעוד שהתוכן ממוקם בתחתית בלבד (`items-end`, שורה 68) — כך שהכהות בחלק העליון מיותרת.",
+    "fix": "גרדיאנט מונוטוני שמכבד את מיקום התוכן בתחתית: `className=\"absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,.85)_0%,rgba(0,0,0,.45)_38%,rgba(0,0,0,.12)_100%)]\"`. לחלופין, כדי לשמר את חיוניות הזרקור — לצמצם את ה-scrim לתחתית בלבד: `absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/85 to-transparent`.",
+    "severity": "medium",
+    "category": "color",
+    "area": "hero-orbit-spotlight"
+  },
+  {
+    "title": "רדיוס הזרקור קבוע ב-260px וסטטי במובייל — נראה ככתם ולא כאפקט",
+    "file": "components/public/heroes/spotlight-hero.tsx",
+    "line": 62,
+    "problem": "אומת: שורות 61-65 בונות `radial-gradient(circle 260px at var(--sx,50%) var(--sy,38%), ...)` — רדיוס קבוע בכל רזולוציה. אומת גם ששורות 25-30 מקבעות את המסכה ב-50%/40% ללא מאזינים כאשר `(hover: none)` — כלומר בכל מכשיר מגע. התוצאה במובייל: עיגול רווי בקוטר 520px במרכז תמונה מדושנת בגובה 92dvh, ללא שום תנועה שתסביר אותו — נקרא כפגם/כתם ולא כשפה עיצובית. במסך 1920px אותם 260px הם עיגול קטן שאובד בשטח.",
+    "fix": "להפוך את הרדיוס למשתנה רספונסיבי: במחרוזת המסכה `radial-gradient(circle var(--sr,40vmin) at ...)`, ובבלוק ה-<style> (שורות 73-88) להוסיף `.spot-section { --sr: 40vmin } @media (min-width:1024px){ .spot-section { --sr: 300px } }`. במסלול ה-noHover (שורות 26-29) עדיף לוותר על המסכה לגמרי — `layer.style.maskImage = \"none\"; layer.style.webkitMaskImage = \"none\";` (חובה גם הווריאנט עם הקידומת) — כך שהמובייל מקבל תמונה אחידה ורוויה במקום כתם; שים לב שאז שכבת ה-reveal מכסה לחלוטין את תמונת הבסיס ופילטר ה-grayscale שבשורה 97 הופך ללא-רלוונטי במובייל, כמצופה.",
+    "severity": "medium",
+    "category": "responsive",
+    "area": "hero-orbit-spotlight"
+  },
+  {
+    "title": "רוחב הקונטיינר והריפוד של שני ה-heroes לא מתיישרים עם שאר האתר",
+    "file": "components/public/heroes/orbit-hero.tsx",
+    "line": 117,
+    "problem": "אומת מול הסקשנים האמיתיים: gallery-section.tsx:24-25, public-store.tsx:378 ו-site-footer.tsx:50 כולם `max-w-5xl` עם `px-4`. Orbit משתמש ב-`max-w-6xl` (שורה 117) עם `px-4` (שורה 83) — 8rem רחב יותר, כך שקצה הכותרת בולט 64px מכל צד ביחס לכל מה שמתחתיו בגלילה. Spotlight אמנם משתמש נכון ב-`max-w-5xl` (שורה 133), אבל עם `px-6 sm:px-10` (שורה 132) — 8-24px ריפוד עודף, כך שעד רוחב של כ-1104px הטקסט מתחיל בנקודה אחרת מכל שאר הסקשנים (מעל הרוחב הזה ה-max-w מיישר אותם ממילא). ה-`pt-24` בשורה 132 הוא כמעט חסר השפעה חזותית כי הסקשן הוא `flex items-end` (שורה 68).",
+    "fix": "Orbit: להחליף בשורה 117 ל-`max-w-5xl` — `className=\"relative mx-auto grid max-w-5xl items-center gap-10 md:grid-cols-2\"` (זה גם מצמצם את בעיית קריסת העמודות מממצא ה-clamp). Spotlight: בשורה 132 `className=\"relative w-full px-4 pb-16 sm:pb-20\"` — להסיר את `sm:px-10` ואת `pt-24`. את ההקטנה של רוחב Orbit יש לבצע יחד עם קיבוע גודל ה-h1, אחרת העמודה תצטמצם ל-~500px והכותרת בת ה-83px תישבר עוד יותר.",
+    "severity": "low",
+    "category": "alignment",
+    "area": "hero-orbit-spotlight"
+  },
+  {
+    "title": "לולאת rAF ב-Spotlight רצה ללא הפסקה גם כשהעכבר עומד וגם כשה-hero מחוץ למסך",
+    "file": "components/public/heroes/spotlight-hero.tsx",
+    "line": 46,
+    "problem": "אומת: `tick` (שורות 40-47) מסתיים תמיד ב-`raf = requestAnimationFrame(tick)` ללא שום תנאי עצירה, וה-cleanup (שורה 52) רץ רק בעת unmount. כלומר בכל מכשיר עם hover הלולאה כותבת שני custom properties ל-DOM 60 פעמים בשנייה לכל אורך חיי העמוד — גם כשהמשתמש מעולם לא הזיז את העכבר, וגם אחרי שגלל והזרקור כבר לא נראה. במקביל רץ ParticleField (store-hero.tsx:169, לולאת rAF ב-particle-field.tsx:129/147), כך ששתי לולאות מתחרות על אותו frame budget ופוגעות בחלקות הגלילה ובסוללה.",
+    "fix": "לעצור כשההפרש זניח ולהתניע מחדש ב-mousemove: להוסיף `const running = useRef(false)`; ב-tick לחשב `const done = Math.abs(p.tgtX-p.curX) < .05 && Math.abs(p.tgtY-p.curY) < .05;` ואם done — לקבע את הערך הסופי, `running.current = false; return;` ללא rAF נוסף; ב-onMove — `if (!running.current) { running.current = true; raf = requestAnimationFrame(tick); }`. בנוסף לעטוף ב-IntersectionObserver שמסיר את מאזין ה-mousemove כשה-section אינו נראה.",
+    "severity": "medium",
+    "category": "polish",
+    "area": "hero-orbit-spotlight"
+  },
+  {
+    "title": "ל-CTA של Orbit אין למעשה משוב hover, ולשני ה-CTA אין טבעת focus על רקע כהה",
+    "file": "components/public/heroes/orbit-hero.tsx",
+    "line": 132,
+    "problem": "אומת: שורה 132 — `className=\"block rounded-full bg-[#070319] px-8 py-3.5 text-sm font-semibold text-white transition hover:brightness-125\"`. #070319 הוא rgb(7,3,25); הכפלה ב-1.25 נותנת rgb(9,4,31) — שינוי בלתי מורגש, כך שהסימן היחיד לאינטראקטיביות הוא מסגרת ה-conic שמסתובבת ממילא כל הזמן (שורות 98-101) ולכן אינה נקראת כתגובה למשתמש. בנוסף אומת שאין `focus-visible` לא ל-<a> הזה ולא ל-CTA של Spotlight (spotlight-hero.tsx:156-162), ושבלוק ה-`prefers-reduced-motion` של Spotlight (שורות 84-87) מכסה רק את `.spot-kenburns` ו-`.spot-reveal` — כך ש-`hover:scale-[1.05]` בשורה 158 ממשיך לפעול תחת reduced-motion, בניגוד לכל שאר האנימציות בקובץ.",
+    "fix": "Orbit שורה 132: להחליף ל-hover בצבע מוצק מורגש (ולא bg-white/10 — הכפתור הוא הליבה האטומה של מסגרת ה-conic, ושקיפות תחשוף את הגרדיאנט המסתובב מתחתיו): `... transition-colors duration-200 hover:bg-[#171034] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white`. Spotlight שורה 158: להוסיף `focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white`, ולהחליף `transition-transform` ב-`transition-transform motion-reduce:transition-none motion-reduce:hover:scale-100`. כדאי לבדוק תחילה אם sharedCss ב-tier-styles.tsx כבר מספק כלל focus-visible גלובלי — אם כן, להסתמך עליו במקום לכפול.",
+    "severity": "low",
+    "category": "accessibility",
+    "area": "hero-orbit-spotlight"
+  },
+  {
+    "title": "כללי דרג professional דורסים את כל חתימת הכותרת של Vanguard",
+    "file": "components/public/heroes/vanguard-hero.tsx",
+    "line": 127,
+    "problem": "אומת בקוד. resolveDesignTier מחזיר תמיד \"professional\" (lib/design-tier.ts:45-52), app/s/[slug]/page.tsx:738 מטביע data-tier={tier}, ו-StoreHero עוטף ב-<div data-el=\"hero\"> (store-hero.tsx:166). לכן [data-tier=\"professional\"] [data-el=\"hero\"] h1 (tier-styles.tsx:351-362, ספציפיות 0-2-1) מנצח את קלאסי Tailwind של ה-h1 (0-1-0): color:transparent!important + -webkit-text-fill-color:transparent (תכונה עוברת בירושה לספאנים) + linear-gradient עם background-clip:text מבטלים את text-white וצובעים גם את שורות ה-.vg-outline בגרדיאנט הזהב — האלטרנציה \"מלא/חלול\" מתקרסת לגרדיאנט אחיד שעליו סתם נוסף קו מתאר. בנוסף font-size נדרס ל-clamp(2.75rem,2rem+4vw,6.5rem) במקום clamp(2.25rem,11vw,8.5rem) (ב-1440px: 89.6px במקום 136px), line-height ל-1.05 במקום 0.9, font-weight ל-200, ומתווספת animation:tier-pro-rise מעל ה-vg-fade של הספאנים.",
+    "fix": "להוסיף מחלקה vg-h1 ל-h1 (שורה 127) ולהגדיר בבלוק ה-<style> הפנימי (שורות 38-63) כלל מנצח בספציפיות גבוהה יותר:\n[data-tier=\"professional\"] [data-el=\"hero\"] h1.vg-h1{background:none;color:#fff!important;-webkit-text-fill-color:#fff;font-size:clamp(2.25rem,11vw,8.5rem);line-height:.9;letter-spacing:-.02em;animation:none}\n[data-tier=\"professional\"] [data-el=\"hero\"] h1.vg-h1 .vg-outline{color:transparent!important;-webkit-text-fill-color:transparent}",
+    "severity": "critical",
+    "category": "color",
+    "area": "hero-vanguard-router"
+  },
+  {
+    "title": "Anton חסר אותיות עבריות — הכותרת הראשית נופלת לפונט מערכת גנרי",
+    "file": "components/public/heroes/vanguard-hero.tsx",
+    "line": 41,
+    "problem": "שורה 37 טוענת את Anton מ-Google Fonts ושורה 41 מגדירה .vg-display{font-family:'Anton',sans-serif}. ל-Anton יש רק latin/latin-ext/vietnamese — אפס glyphs עבריים, ולכן כל כותרת בעברית (כמעט כל אתר במוצר) נופלת ל-sans-serif הגנרי של הדפדפן ולא ל-Heebo של האתר (app/layout.tsx:9-13 מגדיר --font-sans עם subset hebrew — והוא לא נכלל בשרשרת ה-fallback של .vg-display). בשילוב font-weight:200 שהדרג כופה (tier-styles.tsx:352) האלמנט הגדול בעמוד מוצג בפונט מערכת דק, ומעליו -webkit-text-stroke:2px (שורה 54) שעבה מדי ביחס לגוף האות ומרחיב את השורות ה\"חלולות\" לקווים מרוחים.",
+    "fix": "שורה 41: .vg-display{font-family:'Anton',var(--font-sans),sans-serif}; ובכלל המנצח מממצא 1 להוסיף font-weight:800 (Heebo משתנה ונותן משקל תצוגה אמיתי בעברית) ולהתאים את שורה 54 ל--webkit-text-stroke:3px rgba(255,255,255,.92). עדיף: לוותר על Anton ולהשתמש בפונט תצוגה עברי (Heebo 900 / Rubik).",
+    "severity": "high",
+    "category": "typography",
+    "area": "hero-vanguard-router"
+  },
+  {
+    "title": "שדה החלקיקים ותוויות ה-HUD של הדרג מוסתרים לגמרי מאחורי רקע הסקשן",
+    "file": "components/public/heroes/store-hero.tsx",
+    "line": 166,
+    "problem": "אומת. העטיפה <div data-el=\"hero\" className=\"relative\"> מקבלת isolation:isolate (tier-styles.tsx:345-350) ולכן היא stacking context. ParticleField (-z-20, particle-field.tsx:160) ו-HudFrame (-z-10, hud-frame.tsx:18) נצבעים בשלב ה-z שלילי, בעוד ה-<section> של Vanguard הוא position:relative עם z-index:auto (vanguard-hero.tsx:36) ונצבע בשלב הצאצאים הממוקמים — מעליהם. הרקע bg-[#0a0a0a] של הסקשן אטום (וגם שכבת הגרדיאנט בשורה 85 אטומה), כך ששני מרכיבי החתימה של הדרג מכוסים ב-100% ולולאת ה-requestAnimationFrame של הקנבס רצה לחינם. ההנחה בתיעוד של HudFrame ו-ParticleField (\"renders behind the hero's real, non-positioned, in-flow text content\") לא מתקיימת מול hero שהוא עצמו אלמנט ממוקם עם רקע אטום.",
+    "fix": "ב-store-hero.tsx להעביר את שתי השכבות (167-172) אחרי {heroNode} ולעטוף אותן ב-<div className=\"pointer-events-none absolute inset-0 z-[1]\"> — תוכן ה-hero כבר z-10 (vanguard-hero.tsx:116) ולכן יישאר מעליהן. לחלופין: להסיר bg-[#0a0a0a] משורה 36 ולהפוך את הגרדיאנט בשורה 85 לחצי-שקוף. שווה לבדוק את אותה בעיה גם ב-orbit/spotlight.",
+    "severity": "high",
+    "category": "consistency",
+    "area": "hero-vanguard-router"
+  },
+  {
+    "title": "הראוטר עדיין מייצא ומרנדר כברירת מחדל את classic ו-cozy שהוחלט למחוק",
+    "file": "components/public/heroes/store-hero.tsx",
+    "line": 15,
+    "problem": "אומת חלקית. HeroStyle (שורה 15) ו-HERO_STYLES (17-23) עדיין כוללים classic ו-cozy; ה-default: בשורות 160-161 מרנדר ClassicHero; ומיגרציה 0045 קובעת websites.hero_style not null default 'classic' — כלומר כל אתר שלא נגעו בו מקבל hero שמיועד למחיקה. גם lib/hero-style.ts:7,15,33 עדיין מחזיר \"cozy\"/\"classic\" בזמן יצירת אתר, lib/actions/design.ts:100 עדיין מאשר אותם, ו-components/business/hero-style-picker.tsx:13-19 עדיין מציג אותם לבעלים. ClassicHero (178-214), HeroDecor (62-137, בשימוש רק ב-ClassicHero:190) והייבוא של CozyHero ו-Sparkles הופכים לקוד מת. הערה מתקנת: HERO_STYLES של store-hero.tsx אינו מזין את הבורר — לבורר יש מערך STYLES מקומי משלו, ו-HERO_STYLES כרגע ייצוא שלא נצרך באף מקום.",
+    "fix": "להסיר \"classic\"|\"cozy\" מ-HeroStyle ומ-HERO_STYLES (או למחוק את HERO_STYLES שאינו בשימוש), למחוק את ClassicHero ו-HeroDecor ואת הייבוא של CozyHero ו-Sparkles (שורות 1-2), ולהחליף את ה-default: ב-return <VanguardHero {...p} />. במקביל: לעדכן lib/hero-style.ts (HeroStyleKey, כללי cozy, ברירת המחדל→vanguard/spotlight), lib/actions/design.ts:100, components/business/hero-style-picker.tsx:13-19 (כולל ה-Preview של cozy ו-classic), tests/hero-style.test.ts:24-30, ולהוסיף מיגרציה בסגנון 0074 שממפה 'classic'/'cozy' לאחד מ-orbit/spotlight/vanguard ומשנה את ה-default של העמודה.",
+    "severity": "high",
+    "category": "consistency",
+    "area": "hero-vanguard-router"
+  },
+  {
+    "title": "כל ה-<p> ב-hero נצבעים באפור אחיד — היררכיית בלוק החתימה נעלמת",
+    "file": "components/public/heroes/vanguard-hero.tsx",
+    "line": 167,
+    "problem": "אומת. הכלל [data-tier=\"professional\"] [data-el=\"hero\"] p{color:#c6c6c6!important} (tier-styles.tsx:363-366) חל על כל פסקה בתוך ה-hero. שם המותג (שורה 167, text-white font-bold) והסלוגן שמתחתיו (שורה 168, text-white/50) מקבלים בדיוק את אותו צבע, וגם ה-socialProof (174) וה-subheadline (149) — כל ההפרדה הצבעונית שתוכננה בין השורות מתאפסת ונשארת רק הפרדה במשקל/גודל. בנוסף אותו כלל מגדיר animation:tier-pro-rise שדורס את שם/משך/עקומת ה-.vg-fade בפסקאות (רק ה-animation-delay האינליני שורד), כך שהכוריאוגרפיה שתוכננה (30px ease-out) מוחלפת ב-24px cubic-bezier.",
+    "fix": "להחליף את שתי הפסקאות בשורות 167-168 ב-<span className=\"block\"> (לא נתפס בסלקטור p), או להוסיף כלל מנצח בבלוק ה-<style>: [data-tier=\"professional\"] [data-el=\"hero\"] p.vg-sig-name{color:#fff!important;animation:vg-fade-up .8s ease-out both} ו-[data-tier=\"professional\"] [data-el=\"hero\"] p.vg-sig-slogan{color:rgba(255,255,255,.6)!important}.",
+    "severity": "medium",
+    "category": "color",
+    "area": "hero-vanguard-router"
+  },
+  {
+    "title": "הסלוגן מוצג פעמיים באותו מסך",
+    "file": "components/public/heroes/vanguard-hero.tsx",
+    "line": 168,
+    "problem": "אומת. אותו ערך slogan מרונדר גם ב-badge העליון (שורה 123) וגם בבלוק החתימה התחתון (שורה 168), בתוך אותו סקשן של min-height:92vh (שורה 39) ובמרחק של כמה מאות פיקסלים. זה נקרא כתקלת נתונים ולא ככוונה עיצובית.",
+    "fix": "להסיר את שורה 168; אם רוצים תוכן משלים בבלוק החתימה — להעביר לשם את socialProof במקום, ולמחוק את שורות 173-177.",
+    "severity": "medium",
+    "category": "consistency",
+    "area": "hero-vanguard-router"
+  },
+  {
+    "title": "fallback קשיח \"קולקטיב יצירתי\" לכל עסק ללא סלוגן",
+    "file": "components/public/heroes/vanguard-hero.tsx",
+    "line": 123,
+    "problem": "אומת: <span>{slogan || \"קולקטיב יצירתי\"}</span>. מאפייה, אינסטלטור או מרפאת שיניים שלא מילאו סלוגן יקבלו \"קולקטיב יצירתי\" באלמנט הראשון של האתר שלהם — טקסט של סוכנות עיצוב שלא רלוונטי לרובם. לשם השוואה ClassicHero פשוט לא מרנדר את ה-badge כשאין סלוגן (store-hero.tsx:194).",
+    "fix": "לעטוף את שורות 118-124 ב-{slogan && ( ... )} כך שה-badge נעלם כשאין תוכן, או לגבות ב-{slogan || brandName}.",
+    "severity": "medium",
+    "category": "consistency",
+    "area": "hero-vanguard-router"
+  },
+  {
+    "title": "הוויניט משאיר את מרכז הפריים — שבו יושב כל הטקסט — ללא רצפת כהות",
+    "file": "components/public/heroes/vanguard-hero.tsx",
+    "line": 78,
+    "problem": "אומת חלקית. שורה 78: radial-gradient(90% 90% at 50% 45%, transparent 35%, rgba(0,0,0,.6) 100%) — 35% המרכזיים שקופים לחלוטין, וכל הקומפוזיציה ממורכזת, כלומר הטקסט יושב באזור הכי פחות מוכהה ונשען רק על ה-linear-gradient של שורה 73 (0.35 בראש הסקשן). מעל תמונת hero בהירה שהלקוח העלה, ה-badge בשורה 119 (text-xs, tracking-[0.3em], text-white/70) עלול לרדת מתחת ל-4.5:1. תיקון לממצא המקורי: הפסקאות בשורות 168 ו-174 אינן נשארות text-white/50 — הדרג כופה עליהן color:#c6c6c6!important (tier-styles.tsx:363), ולכן הן קריאות בהרבה ממה שנטען; החשיפה האמיתית היא ה-badge (span, לא p) והרצפה החסרה של הוויניט.",
+    "fix": "שורה 78: radial-gradient(90% 90% at 50% 45%, rgba(0,0,0,.3) 35%, rgba(0,0,0,.72) 100%) — רצפת כהות אחידה במקום שקיפות מלאה; ושורה 119: text-white/70 → text-white/85.",
+    "severity": "medium",
+    "category": "accessibility",
+    "area": "hero-vanguard-router"
+  },
+  {
+    "title": "חלוקת השורות לא מאוזנת בכותרות ארוכות, ו-h1 ריק במקרה קצה",
+    "file": "components/public/heroes/vanguard-hero.tsx",
+    "line": 20,
+    "problem": "אומת. words.slice(4) / words.slice(6) (שורות 24-25) דוחסים את כל שארית המילים לשורה השלישית: כותרת של 12 מילים → [3,3,6], והשורה האחרונה נשברת ל-3-4 שורות ויזואליות בגודל תצוגה. מכיוון שהאלטרנציה מלא/חלול חלה על שורה לוגית (שורה 133), כל הגוש התחתון מקבל טיפול אחיד והקומפוזיציה הפוסטרית קורסת. בנוסף בשורה 16, אם headline וגם brandName ריקים — words=[] ו-lines=[] וה-h1 מרונדר ריק (מקרה קצה בלבד: app/s/[slug]/page.tsx:860 מעביר headline={home?.hero.headline ?? brandName}).",
+    "fix": "חלוקה אחידה בלי לאבד מילים:\nconst src = (headline || brandName || \"ברוכים הבאים\").split(\" \").filter(Boolean);\nconst n = Math.min(3, src.length) || 1;\nconst per = Math.ceil(src.length / n);\nconst lines = Array.from({ length: n }, (_, i) => src.slice(i * per, (i + 1) * per).join(\" \")).filter(Boolean);\n(לא להשתמש ב-slice(0,9) כפי שהוצע במקור — הוא מוחק מילים מהכותרת של הלקוח.)",
+    "severity": "low",
+    "category": "polish",
+    "area": "hero-vanguard-router"
+  },
+  {
+    "title": "תמונת ה-LCP נטענת בלי עדיפות — הזום הקולנועי מתחיל לפני שהתמונה מוכנה",
+    "file": "components/public/heroes/vanguard-hero.tsx",
+    "line": 69,
+    "problem": "אומת: <img src={heroImg} alt=\"\" className=\"vg-kenburns ...\" /> גולמי, בלי fetchPriority, בלי decoding ובלי preload — זו תמיד תמונת ה-LCP של אתר הלקוח. אנימציית vg-kenburns (2s, שורה 51) מתחילה עם ההרכבה ולא עם טעינת התמונה, כך שאם הפענוח לוקח שנייה המבקר רואה תחילה רקע #0a0a0a ואז את התמונה נכנסת באמצע הזום.",
+    "fix": "שורה 69: להוסיף fetchPriority=\"high\" decoding=\"async\", ולהוסיף בראש הקומפוננטה <link rel=\"preload\" as=\"image\" href={heroImg} /> (React 19 מרים אותו ל-head). זהה ב-store-hero.tsx:184.",
+    "severity": "low",
+    "category": "polish",
+    "area": "hero-vanguard-router"
+  },
+  {
+    "title": "letter-spacing + uppercase על עברית שובר את המילה ומזיז את הבלוק הממורכז",
+    "file": "components/public/heroes/vanguard-hero.tsx",
+    "line": 119,
+    "problem": "אומת. שורה 119: uppercase tracking-[0.3em] על ה-badge; שורה 174: uppercase tracking-[0.35em] על ה-socialProof. uppercase הוא no-op בעברית (אין רישיות), ומרווח של 0.3-0.35em שובר את צורת המילה העברית בלי הקצב שהאותיות הלטיניות נותנות. בנוסף letter-spacing מוסיף advance גם אחרי התו האחרון — בעברית זה בצד ה-inline-end (שמאל) — כך שבתוך flex-col items-center + text-center השורות יוצאות מוסטות בכ-0.3em ולא ממורכזות אופטית מול קו המותג הממורכז (שורות 142-146).",
+    "fix": "להסיר uppercase משורות 119 ו-174, להקטין ל-tracking-[0.12em], ולקזז את המרווח הנגרר עם margin-inline-end שלילי על אותם אלמנטים: [margin-inline-end:-0.12em] (לא text-indent — הוא מוסיף בצד ה-start ומחריף את ההסטה).",
+    "severity": "low",
+    "category": "rtl",
+    "area": "hero-vanguard-router"
+  },
+  {
+    "title": "קו המותג נדבק לפסקת המשנה במקום לשמש מפריד",
+    "file": "components/public/heroes/vanguard-hero.tsx",
+    "line": 142,
+    "problem": "אומת. המפריד (יהלום + שני קווים) מקבל mt-6 (24px), פסקת המשנה שמתחתיו mt-5 (20px) — הפער התחתון קטן מהעליון ולכן המפריד נקרא כחלק מהפסקה במקום כהפרדה בין הכותרת לטקסט. כשאין subheadline המפריד מוצא את עצמו mt-8 (32px) מעל שורת ה-CTA (שורה 154) — ריווח שלישי ושונה, בלי קצב אנכי אחיד.",
+    "fix": "שורה 142: mt-8, ושורה 149: mt-8 — מרווח סימטרי סביב המפריד בשני המצבים.",
+    "severity": "low",
+    "category": "spacing",
+    "area": "hero-vanguard-router"
+  },
+  {
+    "title": "מאפיין יישור פיזי במקום לוגי",
+    "file": "components/public/heroes/vanguard-hero.tsx",
+    "line": 166,
+    "problem": "אומת: className=\"text-right leading-tight\" בבלוק החתימה. מאפיין פיזי בעמוד dir=\"rtl\" (app/layout.tsx:32) — עובד רק במקרה כי right==start בעברית, וישבר בכל הקשר LTR. מפר את חוזה המאפיינים הלוגיים ששאר הקובץ כן מקיים (ps/pe, inset-inline ב-hud-frame).",
+    "fix": "שורה 166: className=\"text-start leading-tight\".",
+    "severity": "low",
+    "category": "rtl",
+    "area": "hero-vanguard-router"
+  },
+  {
+    "title": "עטיפת max-w-6xl מיותרת סביב עמודת max-w-4xl",
+    "file": "components/public/heroes/vanguard-hero.tsx",
+    "line": 116,
+    "problem": "אומת. שורה 116 מגדירה max-w-6xl (72rem) שעוטף אך ורק div ב-max-w-4xl (56rem) שכבר ממורכז ב-items/justify — האילוץ החיצוני לא משפיע על שום דבר ורק מוסיף רמת DOM. בנוסף max-w-4xl (שורה 117) הוא אילוץ אמיתי: כותרת בגודל היעד (עד 8.5rem=136px) חסומה ל-896px, כך שגם שורות של 2-3 מילים נשברות לשורות נוספות במסך רחב ומפרקות את תכנון 2-3 השורות.",
+    "fix": "למחוק את ה-div בשורה 116 ולמזג את התוכן ל-<div className=\"relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center text-center\">. max-w-xl כבר קיים על פסקת המשנה (שורה 149) ונשאר. (הרחבת הרוחב עצמה היא שיפוט עיצובי — הסרת העטיפה הכפולה היא נקייה בכל מקרה.)",
+    "severity": "low",
+    "category": "spacing",
+    "area": "hero-vanguard-router"
+  }
+]

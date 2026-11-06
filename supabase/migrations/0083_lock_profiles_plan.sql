@@ -1,0 +1,56 @@
+-- 0083 — close the self-service plan upgrade on public.profiles
+--
+-- NO GIT IN THIS REPO. The down-path at the bottom is the only revert that
+-- exists; keep it with the file.
+--
+-- ── The hole ────────────────────────────────────────────────────────────────
+-- Verified live on vxkamrcukzdovfikzeyt before writing this:
+--
+--   pg_class.relacl for public.profiles:
+--     postgres=arwdDxtm | anon=arwdDxtm | authenticated=arwdDxtm | service_role=arwdDxtm
+--   i.e. a TABLE-level grant carrying `w` (UPDATE) to authenticated.
+--
+--   pg_policy for public.profiles:
+--     profiles_update_own  polcmd 'w'  using/check (id = auth.uid())
+--   i.e. FOR UPDATE with NO column restriction.
+--
+-- So this succeeds today, with nothing but the publicly-shipped anon key and a
+-- normal signed-in session:
+--
+--     PATCH /rest/v1/profiles?id=eq.<own uid>   {"plan":"business"}
+--
+-- and getPlanForUser (lib/quota.ts:87-100) reads exactly that column for every
+-- quota and entitlement decision in the product. That is a free ₪699 tier.
+--
+-- ── The fix ─────────────────────────────────────────────────────────────────
+-- A column-level `revoke update (plan)` here would be a SILENT NO-OP: a column
+-- subset cannot be revoked out of a table-level grant. The table grant goes
+-- first, then the writable columns come back.
+--
+-- `id` is REQUIRED in the re-grant. lib/auth/actions.ts:269-271 does
+--   .upsert({ id: user.id, full_name: fullName }, { onConflict: "id" })
+-- through the RLS client, and PostgREST derives the ON CONFLICT DO UPDATE SET
+-- list from the payload keys — so `id` lands in the SET list and needs the
+-- privilege. It is harmless: profiles_update_own's WITH CHECK (id = auth.uid())
+-- makes writing it a no-op.
+--
+-- `plan`, `created_at` and `updated_at` are intentionally absent, so they
+-- become service-role-only. That matches reality: profiles.plan's only writer
+-- is syncSubscriptionFromStripe (lib/services/billing.service.ts:158), which
+-- uses createServiceRoleClient().
+--
+-- New columns added to profiles later default to NOT client-writable, which is
+-- the direction we want.
+-- ────────────────────────────────────────────────────────────────────────────
+
+revoke update on public.profiles from anon, authenticated;
+grant  update (id, full_name, avatar_url, phone) on public.profiles to authenticated;
+
+
+-- ── Down ────────────────────────────────────────────────────────────────────
+-- Restores the previous (vulnerable) state exactly:
+--
+--   grant update on public.profiles to anon, authenticated;
+--
+-- Nothing in the application needs reverting alongside it — no app code writes
+-- profiles.plan through the RLS client.

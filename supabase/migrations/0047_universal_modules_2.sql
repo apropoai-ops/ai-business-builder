@@ -1,0 +1,6 @@
+-- ============================================================================
+--  Migration 0047 — universal cross-business modules wave 2 (parallel agents).
+--  memberships, courses, downloads, donations, branches, partners, stats,
+--  before_after, process_steps, certifications. Owner RLS; public via service-role.
+--  Applied via MCP "universal_modules_2".
+-- ============================================================================

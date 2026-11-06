@@ -1,0 +1,22 @@
+{
+  "redirects": [
+    {
+      "source": "/:path((?!api/).*)",
+      "has": [
+        { "type": "host", "value": "ai-business-builder-pi.vercel.app" }
+      ],
+      "destination": "https://apropo.business/:path",
+      "permanent": false
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/daily-brief",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/booking-reminders",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}
